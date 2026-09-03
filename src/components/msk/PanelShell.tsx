@@ -72,13 +72,30 @@ function PanelInner() {
     window.localStorage.setItem("msk.panel.chatCollapsed", collapsed ? "1" : "0");
   }, [width, collapsed]);
 
+  const [resizing, setResizing] = useState(false);
+
   const startResize = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
     event.preventDefault();
+    setResizing(true);
+    document.body.style.userSelect = "none";
+    document.body.style.cursor = "col-resize";
+    let last = 420;
     const onMove = (e: PointerEvent) => {
-      const next = window.innerWidth - e.clientX;
-      setWidth(Math.min(Math.max(next, 320), Math.min(900, window.innerWidth - 360)));
+      const raw = window.innerWidth - e.clientX;
+      const max = Math.max(360, Math.min(900, window.innerWidth - 320));
+      if (raw < 220) {
+        // arrastou para a borda direita: recolhe o chat
+        setCollapsed(true);
+        return;
+      }
+      setCollapsed(false);
+      last = Math.min(Math.max(raw, 320), max);
+      setWidth(last);
     };
     const onUp = () => {
+      setResizing(false);
+      document.body.style.userSelect = "";
+      document.body.style.cursor = "";
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
     };
@@ -117,7 +134,7 @@ function PanelInner() {
   }, [onDrop]);
 
   return (
-    <div className="flex min-h-screen flex-col bg-background text-foreground">
+    <div className="flex h-screen min-h-screen flex-col overflow-hidden bg-background text-foreground">
       <TopBar onPublish={() => setPublishing(true)} />
 
       {!backendConfigured && (
@@ -127,24 +144,31 @@ function PanelInner() {
         </div>
       )}
 
-      <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
-        <main className="order-1 min-h-0 flex-1 p-3 md:p-4">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row">
+        <main className="order-1 flex min-h-0 min-w-0 flex-1 flex-col p-2 md:p-3">
           <Preview />
         </main>
 
-        {!collapsed && (
-          <div
-            role="separator"
-            aria-orientation="vertical"
-            aria-label="Redimensionar chat"
-            onPointerDown={startResize}
-            onDoubleClick={() => setWidth(420)}
-            className="order-2 hidden w-1.5 shrink-0 cursor-col-resize bg-border transition-colors hover:bg-primary lg:block"
-          />
-        )}
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Redimensionar chat"
+          onPointerDown={startResize}
+          onDoubleClick={() => {
+            setCollapsed(false);
+            setWidth(420);
+          }}
+          className={`group order-2 hidden w-2 shrink-0 cursor-col-resize items-center justify-center transition-colors lg:flex ${
+            resizing ? "bg-primary" : "bg-border hover:bg-primary/70"
+          }`}
+        >
+          <span className="h-10 w-0.5 rounded-full bg-foreground/30 group-hover:bg-primary-foreground/60" />
+        </div>
 
         <aside
-          className="msk-scroll order-3 hidden shrink-0 flex-col border-l border-border bg-sidebar lg:flex"
+          className={`msk-scroll order-3 hidden shrink-0 flex-col border-l border-border bg-sidebar lg:flex ${
+            resizing ? "" : "transition-[width] duration-200 ease-out"
+          }`}
           style={{ width: collapsed ? 52 : width }}
         >
           <div className="flex items-center gap-1 border-b border-border p-2">

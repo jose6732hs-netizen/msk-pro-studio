@@ -59,7 +59,7 @@ export function Preview() {
 
       <div
         ref={frameRef}
-        className="msk-scroll flex min-h-0 flex-1 items-start justify-center overflow-auto bg-background p-4"
+        className="msk-scroll flex min-h-0 flex-1 items-stretch justify-center overflow-auto bg-background p-2"
       >
         {!activeProject ? (
           <EmptyState text="Selecione um projeto para carregar o preview real." />
@@ -67,12 +67,11 @@ export function Preview() {
           <EmptyState text="Este projeto ainda não tem URL de preview registrada no MSK." />
         ) : (
           <div
-            className="msk-panel overflow-hidden bg-surface shadow-lg"
+            className="msk-panel h-full w-full overflow-hidden bg-surface shadow-lg"
             style={{
               width: width ? `${width}px` : "100%",
               maxWidth: "100%",
               height: "100%",
-              minHeight: "480px",
               transform: `scale(${zoom})`,
               transformOrigin: "top center",
             }}
