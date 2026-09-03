@@ -37,8 +37,14 @@ export function Chat() {
   const endRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const recRef = useRef<any>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const [listening, setListening] = useState(false);
   const [voiceError, setVoiceError] = useState<string | null>(null);
+
+  const stopStream = () => {
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+  };
 
   // Transcrição por voz (ditado): o texto cai direto na caixa de comando.
   function toggleDictation() {
