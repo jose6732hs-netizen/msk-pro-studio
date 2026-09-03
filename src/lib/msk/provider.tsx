@@ -78,6 +78,10 @@ interface MskState {
   github: GitHubState;
   connectGithub: () => void;
   linkRepository: (repoFullName: string, branch?: string) => void;
+  githubRepos: GithubRepoOption[];
+  reposLoading: boolean;
+  reposError: string | null;
+  listRepositories: () => void;
   connectProjectUrl: (url: string) => string | null;
   extensionInstalled: boolean;
   tutorials: MskTutorial[];
@@ -125,6 +129,9 @@ export function MskProvider({ children }: { children: ReactNode }) {
     branch: null,
     last_commit: null,
   });
+  const [githubRepos, setGithubRepos] = useState<GithubRepoOption[]>([]);
+  const [reposLoading, setReposLoading] = useState(false);
+  const [reposError, setReposError] = useState<string | null>(null);
   const [device, setDevice] = useState<Device>("desktop");
   const [zoom, setZoom] = useState(1);
   const [previewStatus, setPreviewStatus] = useState<PreviewStatus>("empty");
@@ -720,6 +727,38 @@ export function MskProvider({ children }: { children: ReactNode }) {
   }, []);
 
 
+  /** Lista COMPLETA dos repositórios da conta conectada na extensão oficial. */
+  const listRepositories = useCallback(() => {
+    if (!extensionInstalled) {
+      setReposError("Conecte o GitHub pela extensão MSK para listar os repositórios.");
+      return;
+    }
+    setReposError(null);
+    setReposLoading(true);
+    sendToExtension(MSK_EVENTS.PANEL_LIST_REPOS, { source: "panel" });
+    window.setTimeout(() => setReposLoading(false), 12000);
+  }, [extensionInstalled]);
+
+  useEffect(() => {
+    const off = MskEventBus.on(MSK_EVENTS.GITHUB_REPOS, (payload) => {
+      const list = Array.isArray(payload["repos"]) ? (payload["repos"] as Array<Record<string, unknown>>) : [];
+      setGithubRepos(
+        list
+          .map((r) => ({
+            fullName: String(r["fullName"] ?? ""),
+            private: Boolean(r["private"]),
+            branch: (r["branch"] as string) ?? "main",
+            updatedAt: (r["updatedAt"] as string) ?? null,
+          }))
+          .filter((r) => r.fullName.includes("/")),
+      );
+      setReposError((payload["error"] as string) ?? null);
+      setReposLoading(false);
+      if (payload["connected"] === true) setGithub((prev) => ({ ...prev, connected: true }));
+    });
+    return off;
+  }, []);
+
   /* ---- GitHub: mesma conexão da extensão (OAuth server-side) ---- */
   const connectGithub = useCallback(() => {
     // já conectado (pela extensão ou pelo backend): nada a autorizar
@@ -842,6 +881,10 @@ export function MskProvider({ children }: { children: ReactNode }) {
     github,
     connectGithub,
     linkRepository,
+    githubRepos,
+    reposLoading,
+    reposError,
+    listRepositories,
     connectProjectUrl,
     extensionInstalled,
     tutorials,
