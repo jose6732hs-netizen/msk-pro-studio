@@ -182,7 +182,11 @@ export function ContextBar({ onOpenTab }: { onOpenTab?: (tab: string) => void })
           <p className="mb-1 text-foreground">
             Encontrei mais de uma configuração para este projeto. Selecione a correta:
           </p>
-          <AmbiguityPicker hidden={hiddenCandidates} onHide={hideCandidate} />
+          <AmbiguityPicker
+            hidden={hiddenCandidates}
+            onHide={hideCandidate}
+            onSelected={() => setAmbiguityClosed(true)}
+          />
         </div>
       )}
 
@@ -227,8 +231,23 @@ export function ContextBar({ onOpenTab }: { onOpenTab?: (tab: string) => void })
   );
 }
 
-function AmbiguityPicker({ hidden, onHide }: { hidden: string[]; onHide: (id: string) => void }) {
-  const { resolution, setActiveProject } = useMsk();
+function AmbiguityPicker({
+  hidden,
+  onHide,
+  onSelected,
+}: {
+  hidden: string[];
+  onHide: (id: string) => void;
+  onSelected: () => void;
+}) {
+  const { resolution, setActiveProject, linkRepository } = useMsk();
+
+  const choose = (id: string) => {
+    const picked = resolution.candidates.find((c) => c.id === id);
+    setActiveProject(id);
+    if (picked?.repository) linkRepository(picked.repository, picked.branch ?? undefined);
+    onSelected();
+  };
   const candidates = resolution.candidates.filter((c) => !hidden.includes(c.id));
   if (candidates.length === 0) {
     return <p className="text-muted-foreground">Nenhuma configuração restante.</p>;
@@ -242,7 +261,7 @@ function AmbiguityPicker({ hidden, onHide }: { hidden: string[]; onHide: (id: st
         >
           <button
             type="button"
-            onClick={() => setActiveProject(c.id)}
+            onClick={() => choose(c.id)}
             className="flex items-center gap-1 hover:text-primary"
           >
             {c.name}

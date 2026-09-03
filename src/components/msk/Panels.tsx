@@ -361,9 +361,20 @@ export function FilesPanel() {
 /* -------------------------------- Conexões -------------------------------- */
 
 export function ConnectionsPanel() {
-  const { github, activeProject, session, backendConfigured, connectGithub, linkRepository } =
-    useMsk();
+  const {
+    github,
+    activeProject,
+    session,
+    backendConfigured,
+    connectGithub,
+    linkRepository,
+    githubRepos,
+    reposLoading,
+    reposError,
+    listRepositories,
+  } = useMsk();
   const [repoInput, setRepoInput] = useState("");
+  const [repoFilter, setRepoFilter] = useState("");
   const [brandingState, setBrandingState] = useState<string | null>(null);
 
   async function removeBranding() {
@@ -421,6 +432,55 @@ export function ConnectionsPanel() {
             Sincronizar
           </button>
         </div>
+
+        <div className="mt-3 flex items-center gap-2">
+          <button
+            type="button"
+            onClick={listRepositories}
+            className="rounded-md border border-border px-2 py-1 text-[11px] text-foreground hover:border-primary hover:text-primary"
+          >
+            {reposLoading ? "Carregando repositórios..." : "Listar repositórios da conta"}
+          </button>
+          {githubRepos.length > 0 && (
+            <span className="text-[11px] text-muted-foreground">{githubRepos.length} encontrados</span>
+          )}
+        </div>
+        {reposError && <p className="mt-1 text-[11px] text-red-400">{reposError}</p>}
+
+        {githubRepos.length > 0 && (
+          <div className="mt-2">
+            <input
+              value={repoFilter}
+              onChange={(e) => setRepoFilter(e.target.value)}
+              placeholder="Filtrar repositório..."
+              className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-xs outline-none focus:border-primary"
+            />
+            <div className="msk-scroll mt-2 max-h-64 space-y-1 overflow-y-auto pr-1">
+              {githubRepos
+                .filter((r) => r.fullName.toLowerCase().includes(repoFilter.trim().toLowerCase()))
+                .map((r) => {
+                  const active = (github.repository ?? activeProject?.repository) === r.fullName;
+                  return (
+                    <button
+                      key={r.fullName}
+                      type="button"
+                      onClick={() => linkRepository(r.fullName, r.branch)}
+                      className={`flex w-full items-center justify-between gap-2 rounded-md border px-2 py-1.5 text-left text-[11px] ${
+                        active
+                          ? "border-primary bg-primary/10 text-foreground"
+                          : "border-border text-muted-foreground hover:border-primary hover:text-foreground"
+                      }`}
+                    >
+                      <span className="truncate">{r.fullName}</span>
+                      <span className="shrink-0 text-[10px] text-muted-foreground">
+                        {r.private ? "privado" : "público"} · {r.branch}
+                      </span>
+                    </button>
+                  );
+                })}
+            </div>
+          </div>
+        )}
       </div>
       <ConnectionCard
         icon={<Globe className="size-4" />}
