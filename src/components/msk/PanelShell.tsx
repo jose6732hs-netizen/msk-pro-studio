@@ -66,10 +66,37 @@ export function MskPanel() {
 }
 
 function PanelInner() {
-  const { addFiles, backendConfigured, backendError } = useMsk();
+  const { addFiles, backendConfigured, backendError, activeProject } = useMsk();
+  const { ensureActive } = useLicense();
   const [tab, setTab] = useState<TabKey>("chat");
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [shared, setShared] = useState(false);
+  const [publishingNow, setPublishingNow] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [publishing, setPublishing] = useState(false);
+
+  async function handleShare() {
+    const url =
+      activeProject?.preview_url ?? activeProject?.lovable_url ?? window.location.href;
+    try {
+      if (navigator.share) await navigator.share({ title: activeProject?.name ?? "MSK", url });
+      else await navigator.clipboard.writeText(url);
+      setShared(true);
+      setTimeout(() => setShared(false), 1600);
+    } catch {
+      /* cancelado */
+    }
+  }
+
+  // Operação sensível: revalida a licença no SERVIDOR antes de publicar.
+  async function handlePublish() {
+    setPublishingNow(true);
+    try {
+      if (await ensureActive()) setPublishing(true);
+    } finally {
+      setPublishingNow(false);
+    }
+  }
   const [collapsed, setCollapsed] = useState(false);
   const [width, setWidth] = useState(380);
 
@@ -147,7 +174,7 @@ function PanelInner() {
 
   return (
     <div className="flex h-screen min-h-screen flex-col overflow-hidden bg-background text-foreground">
-      <TopBar onPublish={() => setPublishing(true)} />
+      <TopBar />
 
       {!backendConfigured && (
         <div className="border-b border-border bg-surface px-4 py-2 text-center text-xs text-muted-foreground">
