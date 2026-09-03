@@ -88,17 +88,12 @@
       try {
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
         const u = tab?.url ? new URL(tab.url) : null;
-        if (
-          u &&
-          /^https?:$/.test(u.protocol) &&
-          !/lovable\.dev$/i.test(u.hostname) && // editor Lovable não é preview
-          !/lovable\.app$/i.test(u.hostname) || // painel publicado... (tratado abaixo)
-          (u && u.hostname === "localhost")
-        ) {
-          // aceita qualquer origem http(s) como preview, exceto a própria página do editor
-          if (!/lovable\.dev$/i.test(u.hostname)) {
-            ctx.previewUrl = u.origin + (u.pathname === "/" ? "" : u.pathname);
-          }
+        const isHttp = u && /^https?:$/.test(u.protocol);
+        const isEditor = u && /(^|\.)lovable\.dev$/i.test(u.hostname);
+        const isPanel = u && /msk-pro-studio\.lovable\.app$/i.test(u.hostname);
+        if (isHttp && !isEditor && !isPanel) {
+          ctx.previewUrl = u.origin + (u.pathname === "/" ? "" : u.pathname);
+          if (!ctx.productionUrl && /^https:$/.test(u.protocol)) ctx.productionUrl = u.origin;
         }
       } catch (e) {
         /* sem permissão de tabs: segue sem fallback */
