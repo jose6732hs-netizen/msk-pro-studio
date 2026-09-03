@@ -350,13 +350,13 @@ function DeviceMockup({
             mobile
               ? "rounded-[46px] bg-gradient-to-br from-[#d92b33] via-[#4a040a] to-[#d92b33] p-[5px] shadow-[0_24px_60px_-20px_rgba(120,0,10,0.65)]"
               : tablet
-                ? "rounded-[28px] bg-neutral-900 p-[12px] shadow-[0_30px_80px_-20px_rgba(0,0,0,0.9)] ring-1 ring-white/10"
+                ? "rounded-[42px] bg-gradient-to-b from-[#4a4a4e] via-[#2c2c2f] to-[#4a4a4e] p-[7px] shadow-[0_34px_90px_-24px_rgba(0,0,0,0.9),0_0_0_1px_rgba(255,255,255,0.08),inset_0_0_0_1px_rgba(255,255,255,0.06)]"
                 : "bg-black"
           }`}
         >
           <div
             className={`relative size-full overflow-hidden bg-black ${
-              mobile ? "rounded-[39px] border-[8px] border-[#1a0204]" : tablet ? "rounded-[17px]" : ""
+              mobile ? "rounded-[39px] border-[8px] border-[#1a0204]" : tablet ? "rounded-[35px] ring-1 ring-black/60" : ""
             }`}
           >
             <span className={`${mobile ? "flex" : "hidden"} pointer-events-none absolute left-1/2 top-[8px] z-10 h-[24px] w-[88px] -translate-x-1/2 items-center justify-end rounded-full bg-black pr-[7px] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]`}>
@@ -365,7 +365,10 @@ function DeviceMockup({
                 <span className="absolute left-[2px] top-[1px] size-[3px] rounded-full bg-white/70" />
               </span>
             </span>
-            <span className={`${tablet ? "block" : "hidden"} pointer-events-none absolute left-1/2 top-[4px] z-10 size-[6px] -translate-x-1/2 rounded-full bg-neutral-700`} />
+            <span className={`${tablet ? "block" : "hidden"} pointer-events-none absolute left-1/2 top-[7px] z-10 size-[8px] -translate-x-1/2 rounded-full bg-[#0b0f1a] ring-[1.5px] ring-white/20`}>
+              <span className="absolute inset-[2px] rounded-full bg-[#12284a]" />
+              <span className="absolute left-[1px] top-[1px] size-[2px] rounded-full bg-white/60" />
+            </span>
             <div className="size-full overflow-hidden">{children}</div>
             <span className={`${mobile ? "block" : "hidden"} pointer-events-none absolute bottom-[5px] left-1/2 h-[4px] w-24 -translate-x-1/2 rounded-full bg-white/60`} />
           </div>
