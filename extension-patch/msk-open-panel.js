@@ -82,6 +82,23 @@
         /* sem permissão de tabs: segue sem fallback */
       }
     }
+    // fallback 2: qualquer link de projeto aberto no PC (localhost, domínio próprio,
+    // preview publicado etc.) deve refletir no preview do painel
+    if (!ctx.previewUrl) {
+      try {
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        const u = tab?.url ? new URL(tab.url) : null;
+        const isHttp = u && /^https?:$/.test(u.protocol);
+        const isEditor = u && /(^|\.)lovable\.dev$/i.test(u.hostname);
+        const isPanel = u && /msk-pro-studio\.lovable\.app$/i.test(u.hostname);
+        if (isHttp && !isEditor && !isPanel) {
+          ctx.previewUrl = u.origin + (u.pathname === "/" ? "" : u.pathname);
+          if (!ctx.productionUrl && /^https:$/.test(u.protocol)) ctx.productionUrl = u.origin;
+        }
+      } catch (e) {
+        /* sem permissão de tabs: segue sem fallback */
+      }
+    }
     const hasAny = Object.values(ctx).some(
       (v, i) => i < 12 && typeof v === "string" && v.length > 0,
     );
