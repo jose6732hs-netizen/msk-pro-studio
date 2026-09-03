@@ -9,13 +9,14 @@ import {
   Smartphone,
   Tablet,
 } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import mskLogo from "@/assets/msk-logo.png.asset.json";
 import { useMsk } from "@/lib/msk/provider";
-import { NotificationsPopover } from "./Overlays";
 import { LicenseCountdown } from "./License";
 import type { Device } from "@/lib/msk/core";
 import { useExtensionBridge } from "@/lib/msk/use-bridge";
+import { useExtensionNotifications } from "@/lib/msk/use-extension-notifications";
+import { UnifiedNotificationsPopover } from "./UnifiedNotifications";
 
 const DEVICES: { key: Device; label: string; Icon: typeof Monitor }[] = [
   { key: "desktop", label: "Desktop", Icon: Monitor },
@@ -33,9 +34,17 @@ export function TopBar() {
     previewStatus,
     reloadPreview,
     notifications,
+    session,
+    backendConfigured,
   } = useMsk();
+  const extensionNotifications = useExtensionNotifications();
   const [bellOpen, setBellOpen] = useState(false);
-  const unread = notifications.filter((n) => !n.read).length;
+  const unread = useMemo(() => {
+    const ids = new Set<string>();
+    notifications.filter((n) => !n.read).forEach((n) => ids.add(`db:${n.id}`));
+    extensionNotifications.items.filter((n) => !n.read).forEach((n) => ids.add(`ext:${n.id}`));
+    return ids.size;
+  }, [notifications, extensionNotifications.items]);
 
   return (
     <header className="msk-glass sticky top-0 z-40 flex flex-wrap items-center gap-1.5 px-2.5 py-1.5 md:px-3">
@@ -45,7 +54,6 @@ export function TopBar() {
           alt="MSK Agente"
           className="msk-neon-ring size-7 rounded-full bg-background object-contain"
         />
-        
         <div className="leading-tight">
           <p className="text-xs font-semibold tracking-tight">MSK AGENTE</p>
           <p className="hidden text-[9px] uppercase tracking-[0.18em] text-muted-foreground lg:block">
@@ -126,29 +134,38 @@ export function TopBar() {
         </span>
       </button>
 
-
       <ExtensionBadge />
-
       <LicenseCountdown />
-
 
       <div className="relative">
         <button
           type="button"
-          onClick={() => setBellOpen((v) => !v)}
+          onClick={() => {
+            setBellOpen((v) => !v);
+            extensionNotifications.refresh();
+          }}
           className="msk-panel relative flex items-center px-2 py-1 text-muted-foreground hover:text-foreground"
           aria-label="Notificações"
+          title="Notificações sincronizadas com a extensão MSK"
         >
           <Bell className="size-3.5" />
           {unread > 0 && (
             <span className="absolute -right-1 -top-1 flex size-4 items-center justify-center rounded-full bg-primary text-[9px] font-bold text-primary-foreground">
-              {unread}
+              {Math.min(99, unread)}
             </span>
           )}
         </button>
-        {bellOpen && <NotificationsPopover onClose={() => setBellOpen(false)} />}
+        {bellOpen && (
+          <UnifiedNotificationsPopover
+            onClose={() => setBellOpen(false)}
+            backendNotifications={notifications}
+            extensionNotifications={extensionNotifications.items}
+            backendConfigured={backendConfigured}
+            sessionToken={session.access_token}
+            onReadExtension={extensionNotifications.markRead}
+          />
+        )}
       </div>
-
     </header>
   );
 }
