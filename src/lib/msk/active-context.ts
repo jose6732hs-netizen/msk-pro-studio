@@ -206,33 +206,57 @@ export interface ResolvedPreview {
   reason: "ok" | "unavailable";
 }
 
+/**
+ * URLs do editor Lovable (lovable.dev/projects/... e id-preview--*.lovable.app)
+ * exigem sessão e renderizam a tela "Sign in to continue" dentro do iframe.
+ * O preview público do sandbox é `<id>.lovableproject.com` — sempre convertemos.
+ */
+export function toEmbeddablePreview(url: string | null): string | null {
+  if (!url) return null;
+  try {
+    const u = new URL(url);
+    const id =
+      /(^|\.)lovable\.dev$/i.test(u.hostname)
+        ? u.pathname.match(/([0-9a-f-]{36})/i)?.[1]
+        : /^id-preview--([0-9a-f-]{36})\.lovable\.app$/i.exec(u.hostname)?.[1];
+    if (id) return `https://${id}.lovableproject.com`;
+    return u.toString();
+  } catch {
+    return url;
+  }
+}
+
 export function resolvePreview(
   project: MskProject | null,
   ctx: ActiveContext,
 ): ResolvedPreview {
   // 1. preview ativo configurado explicitamente para o projeto/contexto
   if (ctx.previewUrl && ctx.previewProvider)
-    return { url: ctx.previewUrl, provider: ctx.previewProvider, reason: "ok" };
+    return { url: toEmbeddablePreview(ctx.previewUrl), provider: ctx.previewProvider, reason: "ok" };
   // 2. preview MSK do projeto
-  if (project?.preview_url) return { url: project.preview_url, provider: "msk", reason: "ok" };
+  if (project?.preview_url)
+    return { url: toEmbeddablePreview(project.preview_url), provider: "msk", reason: "ok" };
   // 3. preview/deploy vindo do contexto sem provider declarado
-  if (ctx.previewUrl) return { url: ctx.previewUrl, provider: "deployment", reason: "ok" };
+  if (ctx.previewUrl)
+    return { url: toEmbeddablePreview(ctx.previewUrl), provider: "deployment", reason: "ok" };
   // 4. preview Lovable derivado do ID do projeto identificado pela extensão
   const lovableId = project?.lovable_project_id ?? ctx.lovableProjectId;
   if (lovableId && /^[0-9a-f-]{36}$/i.test(lovableId))
     return {
-      url: `https://id-preview--${lovableId}.lovable.app`,
+      url: `https://${lovableId}.lovableproject.com`,
       provider: "lovable",
       reason: "ok",
     };
-  if (ctx.lovableUrl && /^https:\/\//.test(ctx.lovableUrl))
-    return { url: null, provider: "lovable", reason: "unavailable" };
+  const fromLovableUrl = toEmbeddablePreview(ctx.lovableUrl);
+  if (fromLovableUrl && /lovableproject\.com$/i.test(new URL(fromLovableUrl).hostname))
+    return { url: fromLovableUrl, provider: "lovable", reason: "ok" };
   // 5. produção
   const prod = project?.production_url ?? ctx.productionUrl;
   if (prod) return { url: prod, provider: "deployment", reason: "ok" };
   // 6. indisponível
   return { url: null, provider: null, reason: "unavailable" };
 }
+
 
 export function githubUrlFor(project: MskProject | null, ctx: ActiveContext): string | null {
   if (ctx.githubRepoUrl) return ctx.githubRepoUrl;
