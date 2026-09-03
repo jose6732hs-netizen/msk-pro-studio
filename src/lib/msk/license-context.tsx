@@ -117,6 +117,37 @@ export function LicenseProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [result, Math.floor(Date.now() / 1000)]);
 
+  /**
+   * Duração TOTAL do plano usada como denominador da barra de progresso.
+   * Deve ser ESTÁVEL entre refreshs — senão a barra volta para ~100% a cada
+   * sincronização com o servidor. Preferimos (expiresAt - startsAt); quando
+   * o servidor não informa startsAt, usamos a primeira observação de
+   * remainingSeconds persistida por expiresAt (sobrevive a reload e troca de
+   * plano). Assim a barra diminui monotonicamente até 0 na expiração.
+   */
+  function baselineTotal(expiresAt: string, remaining: number): number {
+    try {
+      const key = `msk.panel.baseline.${expiresAt}`;
+      const stored = window.localStorage.getItem(key);
+      if (stored) {
+        const n = Number(stored);
+        if (Number.isFinite(n) && n > 0) return n;
+      }
+      // Primeira observação: fixa a base aqui (maior remaining já visto).
+      const prevKey = "msk.panel.baseline.last";
+      const prev = window.localStorage.getItem(prevKey);
+      const prevVal = prev ? JSON.parse(prev) as { expiresAt?: string; total?: number } : null;
+      const total = prevVal?.expiresAt === expiresAt && prevVal?.total && prevVal.total > remaining
+        ? prevVal.total
+        : remaining;
+      window.localStorage.setItem(key, String(total));
+      window.localStorage.setItem(prevKey, JSON.stringify({ expiresAt, total }));
+      return total;
+    } catch {
+      return remaining || 1;
+    }
+  }
+
   // Chegou a 00:00:00 com a página aberta: confirma no servidor imediatamente.
   const zeroed = useRef(false);
   useEffect(() => {
