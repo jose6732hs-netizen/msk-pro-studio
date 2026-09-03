@@ -13,7 +13,6 @@ import {
 import { useState } from "react";
 import mskLogo from "@/assets/msk-logo.png.asset.json";
 import { useMsk } from "@/lib/msk/provider";
-import { GitHubService } from "@/lib/msk/services";
 import { NotificationsPopover } from "./Overlays";
 import { LicenseCountdown } from "./License";
 import { useLicense } from "@/lib/msk/license-context";
@@ -30,6 +29,7 @@ export function TopBar({ onPublish }: { onPublish: () => void }) {
   const {
     activeProject,
     github,
+    connectGithub,
     device,
     setDevice,
     previewStatus,
