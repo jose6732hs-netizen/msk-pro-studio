@@ -21,9 +21,13 @@ export interface LicenseActive {
   planId: string | null;
   planName: string;
   startsAt: string | null;
-  expiresAt: string;
+  /** null = licença sem data de expiração (vitalícia). */
+  expiresAt: string | null;
   serverNow: string;
-  remainingSeconds: number;
+  /** null = vitalícia (sem contagem regressiva). */
+  remainingSeconds: number | null;
+  /** true quando a licença não expira. */
+  perpetual: boolean;
   /** Limites do plano cadastrados pelo Admin (ex.: { edicoes: 100, projetos: 10 }). */
   limits: LicenseMetrics;
   /** Uso real acumulado no período (ex.: { edicoes: 42, tokens: 35280 }). */
@@ -95,7 +99,9 @@ export async function verifySessionToken(
 }
 
 function reasonForStatus(status: string): LicenseReason | null {
-  const s = status.toLowerCase();
+  const s = status.trim().toLowerCase();
+  // Status ausente/desconhecido não invalida: a decisão fica com a data de expiração.
+  if (!s) return null;
   if (["active", "trialing", "trial", "ativa", "ativo"].includes(s)) return null;
   if (["suspended", "blocked", "suspensa", "bloqueada"].includes(s)) return "LICENSE_SUSPENDED";
   if (["revoked", "cancelled", "canceled", "revogada", "cancelada"].includes(s))
@@ -174,7 +180,20 @@ function decideLicense(row: LicenseRow, serverNow: string): LicenseResult {
     return { active: false, reason: statusReason, planName, expiresAt, serverNow };
   }
   if (!expiresAt) {
-    return { active: false, reason: "LICENSE_EXPIRED", planName, expiresAt, serverNow };
+    // Sem data de expiração e sem status impeditivo: licença vitalícia ATIVA.
+    return {
+      active: true,
+      licenseId: row.id ?? null,
+      planId: row.plan_id ?? null,
+      planName,
+      startsAt: row.starts_at ?? row.created_at ?? null,
+      expiresAt: null,
+      serverNow,
+      remainingSeconds: null,
+      perpetual: true,
+      limits: metrics(row.limits ?? row.plan_limits),
+      usage: metrics(row.usage),
+    };
   }
 
   const now = Date.parse(serverNow);
@@ -192,6 +211,7 @@ function decideLicense(row: LicenseRow, serverNow: string): LicenseResult {
     expiresAt,
     serverNow,
     remainingSeconds: Math.floor((end - now) / 1000),
+    perpetual: false,
     limits: metrics(row.limits ?? row.plan_limits),
     usage: metrics(row.usage),
   };

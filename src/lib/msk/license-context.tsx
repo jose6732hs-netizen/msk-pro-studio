@@ -59,7 +59,7 @@ export function LicenseProvider({ children }: { children: ReactNode }) {
     try {
       const next = (await getLicenseStatus()) as LicenseResult;
       // Servidor sempre vence: reancora o contador visual.
-      if (next.active) {
+      if (next.active && next.expiresAt) {
         anchor.current = {
           serverNow: Date.parse(next.serverNow),
           clientAt: Date.now(),
@@ -138,7 +138,7 @@ export function LicenseProvider({ children }: { children: ReactNode }) {
     const startsAt = active ? (result.startsAt ?? null) : null;
     const expiresAt = active ? result.expiresAt : (result?.expiresAt ?? null);
     let pct: number | null = null;
-    if (active && remainingSeconds !== null) {
+    if (active && remainingSeconds !== null && result.expiresAt) {
       const total =
         (Date.parse(result.expiresAt) - Date.parse(startsAt ?? result.serverNow)) / 1000;
       pct = total > 0 ? Math.max(0, Math.min(100, (remainingSeconds / total) * 100)) : null;
@@ -167,7 +167,7 @@ export function LicenseProvider({ children }: { children: ReactNode }) {
 
 /** DD DIAS · HH:MM:SS · HH:MM:SS · MM:SS conforme o tempo restante. */
 export function formatCountdown(seconds: number | null): string {
-  if (seconds === null) return "--:--";
+  if (seconds === null) return "VITALÍCIA";
   const s = Math.max(0, seconds);
   const days = Math.floor(s / 86_400);
   const h = Math.floor((s % 86_400) / 3600);
