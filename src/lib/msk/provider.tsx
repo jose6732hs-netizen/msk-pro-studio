@@ -361,12 +361,17 @@ export function MskProvider({ children }: { children: ReactNode }) {
     saveLocal("active_project_id", project.id);
   }, [activeContext]);
 
-  // Projeto/repositório vindos da extensão entram automaticamente no painel.
+  // Projeto/repositório vindos da extensão entram automaticamente no painel (1x por contexto).
+  const autoRegisteredRef = useRef<string | null>(null);
   useEffect(() => {
     if (resolution.status !== "unknown") return;
-    if (!activeContext.lovableProjectId && !activeContext.githubRepo) return;
+    const key = `${activeContext.lovableProjectId ?? ""}|${activeContext.githubRepo ?? ""}`;
+    if (key === "|") return;
+    if (autoRegisteredRef.current === key) return;
+    autoRegisteredRef.current = key;
     registerContextProject();
   }, [resolution.status, activeContext.lovableProjectId, activeContext.githubRepo, registerContextProject]);
+
 
   const dismissContextProject = useCallback(() => setContextDismissed(true), []);
 
