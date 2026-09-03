@@ -1,0 +1,157 @@
+import {
+  Bell,
+  GitBranch,
+  Github,
+  Loader2,
+  Monitor,
+  RefreshCw,
+  Rocket,
+  Smartphone,
+  Tablet,
+} from "lucide-react";
+import { useState } from "react";
+import { useMsk } from "@/lib/msk/provider";
+import { GitHubService } from "@/lib/msk/services";
+import { NotificationsPopover } from "./Overlays";
+import type { Device } from "@/lib/msk/core";
+
+const DEVICES: { key: Device; label: string; Icon: typeof Monitor }[] = [
+  { key: "desktop", label: "Desktop", Icon: Monitor },
+  { key: "tablet", label: "Tablet", Icon: Tablet },
+  { key: "mobile", label: "Mobile", Icon: Smartphone },
+];
+
+export function TopBar({ onPublish }: { onPublish: () => void }) {
+  const {
+    activeProject,
+    github,
+    device,
+    setDevice,
+    previewStatus,
+    reloadPreview,
+    notifications,
+  } = useMsk();
+  const [bellOpen, setBellOpen] = useState(false);
+  const unread = notifications.filter((n) => !n.read).length;
+
+  return (
+    <header className="msk-glass sticky top-0 z-40 flex flex-wrap items-center gap-2 px-3 py-2 md:gap-3 md:px-4">
+      <div className="flex items-center gap-2">
+        <div className="msk-neon-ring flex size-8 items-center justify-center rounded-lg bg-surface-raised">
+          <span className="msk-neon-text font-mono text-xs font-bold">MSK</span>
+        </div>
+        <div className="leading-tight">
+          <p className="text-sm font-semibold tracking-tight">MSK AGENTE</p>
+          <p className="hidden text-[10px] uppercase tracking-[0.18em] text-muted-foreground sm:block">
+            Painel profissional
+          </p>
+        </div>
+      </div>
+
+      <div className="mx-1 hidden h-6 w-px bg-border md:block" />
+
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-medium">
+          {activeProject ? activeProject.name : "Nenhum projeto selecionado"}
+        </p>
+        <p className="flex items-center gap-1 truncate text-[11px] text-muted-foreground">
+          <GitBranch className="size-3" />
+          {activeProject?.branch ?? "—"}
+          <span className="mx-1">·</span>
+          <StatusDot status={previewStatus} />
+        </p>
+      </div>
+
+      <div className="msk-panel hidden items-center gap-0.5 p-0.5 sm:flex">
+        {DEVICES.map(({ key, label, Icon }) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => setDevice(key)}
+            aria-pressed={device === key}
+            title={label}
+            className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs transition-colors ${
+              device === key
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+            }`}
+          >
+            <Icon className="size-3.5" />
+            <span className="hidden lg:inline">{label}</span>
+          </button>
+        ))}
+      </div>
+
+      <button
+        type="button"
+        onClick={reloadPreview}
+        className="msk-panel flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
+        title="Atualizar preview"
+      >
+        {previewStatus === "updating" ? (
+          <Loader2 className="size-3.5 animate-spin" />
+        ) : (
+          <RefreshCw
+            className={`size-3.5 ${previewStatus === "update-available" ? "text-primary" : ""}`}
+          />
+        )}
+        <span className="hidden lg:inline">Atualizar</span>
+      </button>
+
+      <a
+        href={github.connected ? "#conexoes" : GitHubService.authorizeUrl()}
+        className="msk-panel flex items-center gap-1.5 px-2.5 py-1.5 text-xs transition-colors hover:text-foreground"
+        title={github.connected ? `GitHub: ${github.user ?? "conectado"}` : "Conectar GitHub"}
+      >
+        <Github className="size-3.5" />
+        <span className={github.connected ? "text-primary" : "text-muted-foreground"}>
+          {github.connected ? "Conectado" : "Não conectado"}
+        </span>
+      </a>
+
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => setBellOpen((v) => !v)}
+          className="msk-panel relative flex items-center px-2.5 py-1.5 text-muted-foreground hover:text-foreground"
+          aria-label="Notificações"
+        >
+          <Bell className="size-3.5" />
+          {unread > 0 && (
+            <span className="absolute -right-1 -top-1 flex size-4 items-center justify-center rounded-full bg-primary text-[9px] font-bold text-primary-foreground">
+              {unread}
+            </span>
+          )}
+        </button>
+        {bellOpen && <NotificationsPopover onClose={() => setBellOpen(false)} />}
+      </div>
+
+      <button
+        type="button"
+        onClick={onPublish}
+        className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
+        disabled={!activeProject}
+      >
+        <Rocket className="size-3.5" />
+        Publicar
+      </button>
+    </header>
+  );
+}
+
+export function StatusDot({ status }: { status: string }) {
+  const map: Record<string, { label: string; cls: string; pulse?: boolean }> = {
+    synced: { label: "Preview sincronizado", cls: "bg-primary" },
+    "update-available": { label: "Atualização disponível", cls: "bg-warning" },
+    updating: { label: "Atualizando", cls: "bg-azure", pulse: true },
+    error: { label: "Erro no preview", cls: "bg-destructive" },
+    empty: { label: "Sem preview", cls: "bg-muted-foreground" },
+  };
+  const item = map[status] ?? map["empty"]!;
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <span className={`size-1.5 rounded-full ${item.cls} ${item.pulse ? "msk-dot-pulse" : ""}`} />
+      {item.label}
+    </span>
+  );
+}
