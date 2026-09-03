@@ -308,6 +308,58 @@ export function Chat() {
   );
 }
 
+function VoiceWave({ stream }: { stream: MediaStream }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const ctx = new AudioContext();
+    const source = ctx.createMediaStreamSource(stream);
+    const analyser = ctx.createAnalyser();
+    analyser.fftSize = 128;
+    analyser.smoothingTimeConstant = 0.75;
+    source.connect(analyser);
+    const data = new Uint8Array(analyser.frequencyBinCount);
+    let raf = 0;
+
+    const draw = () => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const g = canvas.getContext("2d");
+      if (!g) return;
+      const { width, height } = canvas;
+      analyser.getByteFrequencyData(data);
+      g.clearRect(0, 0, width, height);
+      const bars = 48;
+      const gap = 3;
+      const barW = (width - gap * (bars - 1)) / bars;
+      for (let i = 0; i < bars; i += 1) {
+        const v = data[Math.floor((i / bars) * data.length)] / 255;
+        const h = Math.max(3, v * (height - 4));
+        const x = i * (barW + gap);
+        const y = (height - h) / 2;
+        const grad = g.createLinearGradient(0, y, 0, y + h);
+        grad.addColorStop(0, "#4ade80");
+        grad.addColorStop(1, "#16a34a");
+        g.fillStyle = grad;
+        g.beginPath();
+        g.roundRect(x, y, barW, h, barW / 2);
+        g.fill();
+      }
+      raf = requestAnimationFrame(draw);
+    };
+    raf = requestAnimationFrame(draw);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      source.disconnect();
+      analyser.disconnect();
+      void ctx.close();
+    };
+  }, [stream]);
+
+  return <canvas ref={canvasRef} width={560} height={56} className="block h-14 w-full" aria-hidden />;
+}
+
 function labelForStatus(status: string) {
   const map: Record<string, string> = {
     received: "Recebido",
