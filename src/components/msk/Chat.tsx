@@ -89,13 +89,23 @@ export function Chat() {
     rec.onerror = () => {
       setVoiceError("Não foi possível capturar o áudio. Verifique o microfone.");
       setListening(false);
+      stopStream();
     };
-    rec.onend = () => setListening(false);
+    rec.onend = () => {
+      setListening(false);
+      stopStream();
+    };
     recRef.current = rec;
     rec.start();
   }
 
-  useEffect(() => () => recRef.current?.stop?.(), []);
+  useEffect(
+    () => () => {
+      recRef.current?.stop?.();
+      streamRef.current?.getTracks().forEach((t) => t.stop());
+    },
+    [],
+  );
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
