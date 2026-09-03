@@ -10,6 +10,8 @@ import {
 } from "react";
 import {
   backendConfigured,
+  hydrateBackendConfig,
+
   createBus,
   emptySession,
   loadLocal,
