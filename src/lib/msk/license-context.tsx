@@ -117,34 +117,46 @@ export function LicenseProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [result, Math.floor(Date.now() / 1000)]);
 
+  /** Duração contratada quando o backend ainda não fornece `startsAt`. */
+  function durationForPlan(plan: string | null | undefined): number {
+    const normalized = (plan ?? "").toLocaleLowerCase("pt-BR");
+    if (/di[aá]ri|daily|24\s*h/.test(normalized)) return 86_400;
+    if (/seman|weekly|7\s*dias?/.test(normalized)) return 7 * 86_400;
+    if (/trimestr|quarter|90\s*dias?/.test(normalized)) return 90 * 86_400;
+    if (/semestr|180\s*dias?/.test(normalized)) return 180 * 86_400;
+    if (/anual|annual|year|365\s*dias?/.test(normalized)) return 365 * 86_400;
+    // O plano MSK padrão é mensal, com ciclo comercial de 30 dias.
+    return 30 * 86_400;
+  }
+
   /**
-   * Duração TOTAL do plano usada como denominador da barra de progresso.
-   * Deve ser ESTÁVEL entre refreshs — senão a barra volta para ~100% a cada
-   * sincronização com o servidor. Preferimos (expiresAt - startsAt); quando
-   * o servidor não informa startsAt, usamos a primeira observação de
-   * remainingSeconds persistida por expiresAt (sobrevive a reload e troca de
-   * plano). Assim a barra diminui monotonicamente até 0 na expiração.
+   * Base estável da barra. A primeira versão usava apenas o saldo observado;
+   * ao abrir no 24º dia de um plano mensal, isso fazia 24/24 = 100%. A base
+   * agora nunca fica abaixo da duração contratada identificada pelo plano.
    */
-  function baselineTotal(expiresAt: string, remaining: number): number {
+  function baselineTotal(expiresAt: string, remaining: number, plan: string | null | undefined): number {
+    const contractedDuration = durationForPlan(plan);
     try {
       const key = `msk.panel.baseline.${expiresAt}`;
       const stored = window.localStorage.getItem(key);
       if (stored) {
         const n = Number(stored);
-        if (Number.isFinite(n) && n > 0) return n;
+        if (Number.isFinite(n) && n > 0) {
+          const corrected = Math.max(n, contractedDuration, remaining);
+          if (corrected !== n) window.localStorage.setItem(key, String(corrected));
+          return corrected;
+        }
       }
-      // Primeira observação: fixa a base aqui (maior remaining já visto).
       const prevKey = "msk.panel.baseline.last";
       const prev = window.localStorage.getItem(prevKey);
       const prevVal = prev ? JSON.parse(prev) as { expiresAt?: string; total?: number } : null;
-      const total = prevVal?.expiresAt === expiresAt && prevVal?.total && prevVal.total > remaining
-        ? prevVal.total
-        : remaining;
+      const previous = prevVal?.expiresAt === expiresAt ? (prevVal.total ?? 0) : 0;
+      const total = Math.max(previous, contractedDuration, remaining);
       window.localStorage.setItem(key, String(total));
       window.localStorage.setItem(prevKey, JSON.stringify({ expiresAt, total }));
       return total;
     } catch {
-      return remaining || 1;
+      return Math.max(contractedDuration, remaining, 1);
     }
   }
 
@@ -175,7 +187,7 @@ export function LicenseProvider({ children }: { children: ReactNode }) {
       // faria a barra voltar a ~100% a cada sincronização.
       const total = startsAt
         ? (Date.parse(result.expiresAt) - Date.parse(startsAt)) / 1000
-        : baselineTotal(result.expiresAt, remainingSeconds);
+        : baselineTotal(result.expiresAt, remainingSeconds, result.planName);
       pct = total > 0 ? Math.max(0, Math.min(100, (remainingSeconds / total) * 100)) : null;
     }
     return {
