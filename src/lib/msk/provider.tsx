@@ -503,7 +503,24 @@ export function MskProvider({ children }: { children: ReactNode }) {
       await ConversationService.append(session.access_token, message).catch(() => {});
       busRef.current?.post({ type: "message", message } as never);
 
+      // Motor único: com a extensão instalada, quem executa é o MESMO agente do popup.
+      if (extensionInstalled) {
+        sendToExtension(MSK_EVENTS.PANEL_CHAT_SEND, {
+          messageId: message.id,
+          projectId: activeProject.id,
+          lovableProjectId: activeProject.lovable_project_id,
+          conversationId: activeContext.conversationId,
+          repository: activeProject.repository,
+          branch: activeProject.branch,
+          prompt: message.content,
+          attachments: attachments.map((a) => ({ id: a.id, name: a.name, mime: a.mime })),
+        });
+        setAttachments([]);
+        return;
+      }
+
       try {
+
         const run = await AgentService.start(session.access_token, {
           projectId: activeProject.id,
           lovableProjectId: activeProject.lovable_project_id,
