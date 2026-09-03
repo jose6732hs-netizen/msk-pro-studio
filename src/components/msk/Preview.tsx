@@ -14,7 +14,6 @@ import { loadLocal, saveLocal } from "@/lib/msk/core";
 import { githubUrlFor, lovableUrlFor } from "@/lib/msk/active-context";
 import { useMsk } from "@/lib/msk/provider";
 import { PreviewService } from "@/lib/msk/services";
-import { DEVICE_WIDTH } from "@/lib/msk/core";
 import { StatusDot } from "./TopBar";
 
 export function Preview() {
@@ -33,7 +32,6 @@ export function Preview() {
   const url = preview.url ?? PreviewService.url(activeProject);
   const lovable = lovableUrlFor(activeProject, activeContext);
   const github = githubUrlFor(activeProject, activeContext);
-  const width = DEVICE_WIDTH[device];
   const production = activeProject?.production_url ?? activeContext.productionUrl ?? null;
 
   /* ETAPAS DO SITE — descobertas do projeto real; nada é pré-definido. */
@@ -225,7 +223,7 @@ export function Preview() {
             }
           />
         ) : iframeUrl ? (
-          <DeviceMockup device={device} width={width} zoom={zoom}>
+          <DeviceMockup device={device} zoom={zoom}>
             <iframe
               key={`${previewKey}-${activeProject?.id ?? "ctx"}-${fullUrl}`}
               src={iframeUrl}
@@ -314,12 +312,10 @@ function joinPath(base: string, path: string): string {
 
 function DeviceMockup({
   device,
-  width,
   zoom,
   children,
 }: {
   device: "desktop" | "tablet" | "mobile";
-  width: number | null;
   zoom: number;
   children: React.ReactNode;
 }) {
