@@ -337,7 +337,7 @@ function DeviceMockup({
             mobile
               ? "aspect-[11.6/19.2] h-full max-w-full"
               : tablet
-                ? "aspect-[4/5] h-full max-w-full"
+                ? "aspect-[5/6] h-full max-w-full"
                 : "size-full"
         }`}
       >
@@ -350,7 +350,7 @@ function DeviceMockup({
             mobile
               ? "rounded-[46px] bg-gradient-to-br from-[#d92b33] via-[#4a040a] to-[#d92b33] p-[5px] shadow-[0_24px_60px_-20px_rgba(120,0,10,0.65)]"
               : tablet
-                ? "rounded-[42px] bg-gradient-to-b from-[#4a4a4e] via-[#2c2c2f] to-[#4a4a4e] p-[7px] shadow-[0_34px_90px_-24px_rgba(0,0,0,0.9),0_0_0_1px_rgba(255,255,255,0.08),inset_0_0_0_1px_rgba(255,255,255,0.06)]"
+                ? "rounded-[42px] bg-gradient-to-br from-[#d92b33] via-[#4a040a] to-[#d92b33] p-[7px] shadow-[0_34px_90px_-24px_rgba(120,0,10,0.8),0_0_0_1px_rgba(255,255,255,0.08),inset_0_0_0_1px_rgba(255,255,255,0.06)]"
                 : "bg-black"
           }`}
         >
