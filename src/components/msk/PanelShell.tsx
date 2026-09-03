@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   Check,
+  Download,
   FolderGit2,
   History,
   Link2,
@@ -19,6 +20,7 @@ import {
 } from "lucide-react";
 
 import { MskProvider, useMsk } from "@/lib/msk/provider";
+import { MSK_EVENTS, MskEventBus, sendToExtension } from "@/lib/msk/bridge";
 import { useLicense } from "@/lib/msk/license-context";
 import { TopBar } from "./TopBar";
 import { ContextBar } from "./ContextBar";
@@ -66,7 +68,14 @@ export function MskPanel() {
 }
 
 function PanelInner() {
-  const { addFiles, backendConfigured, backendError, activeProject } = useMsk();
+  const {
+    addFiles,
+    backendConfigured,
+    backendError,
+    activeProject,
+    activeContext,
+    extensionInstalled,
+  } = useMsk();
   const { ensureActive } = useLicense();
   const [tab, setTab] = useState<TabKey>("chat");
   const [menuOpen, setMenuOpen] = useState(false);
@@ -97,6 +106,44 @@ function PanelInner() {
       setPublishingNow(false);
     }
   }
+  // Baixar projeto — mesma função do botão da extensão (zipball do repositório).
+  const [downloading, setDownloading] = useState(false);
+  const repoFull =
+    activeProject?.repository ??
+    (activeContext.githubOwner && activeContext.githubRepo
+      ? `${activeContext.githubOwner}/${activeContext.githubRepo}`
+      : null);
+  const branch = activeProject?.branch ?? activeContext.branch ?? "main";
+
+  async function handleDownload() {
+    if (!repoFull || downloading) return;
+    if (!(await ensureActive())) return;
+    setDownloading(true);
+    const done = () => setDownloading(false);
+    const off = MskEventBus.on(MSK_EVENTS.PROJECT_DOWNLOAD_STATUS, (p) => {
+      if (p["state"] !== "running") {
+        off();
+        done();
+      }
+    });
+    if (extensionInstalled) {
+      // A extensão usa o token oficial do GitHub (funciona com repositórios privados).
+      sendToExtension(MSK_EVENTS.PANEL_DOWNLOAD_PROJECT, { repository: repoFull, branch });
+      window.setTimeout(() => {
+        off();
+        done();
+      }, 20000);
+      return;
+    }
+    // Sem extensão: baixa o zip público do GitHub.
+    off();
+    const a = document.createElement("a");
+    a.href = `https://codeload.github.com/${repoFull}/zip/refs/heads/${branch}`;
+    a.download = `${repoFull.split("/")[1] ?? "projeto"}.zip`;
+    a.click();
+    done();
+  }
+
   const [collapsed, setCollapsed] = useState(false);
   const [width, setWidth] = useState(380);
 
@@ -240,6 +287,23 @@ function PanelInner() {
                   })()}
                 </span>
                 <div className="ml-auto flex shrink-0 items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => void handleDownload()}
+                    disabled={!repoFull || downloading}
+                    title={
+                      repoFull
+                        ? `Baixar projeto (${repoFull})`
+                        : "Conecte um repositório para baixar o projeto"
+                    }
+                    className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground disabled:opacity-40"
+                  >
+                    {downloading ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      <Download className="size-4" />
+                    )}
+                  </button>
                   <button
                     type="button"
                     onClick={() => void handleShare()}
