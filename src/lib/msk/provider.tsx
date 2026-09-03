@@ -579,14 +579,17 @@ export function MskProvider({ children }: { children: ReactNode }) {
 
   /* ---- GitHub: mesma conexão da extensão (OAuth server-side) ---- */
   const connectGithub = useCallback(() => {
-    // 1) pede à extensão para abrir o MESMO fluxo do popup oficial
-    sendToExtension(MSK_EVENTS.PANEL_GITHUB_CONNECT, { source: "panel" });
+    // já conectado (pela extensão ou pelo backend): nada a autorizar
+    if (github.connected && github.repository) return;
+    // 1) pede à extensão para abrir o MESMO fluxo OAuth do popup oficial
+    sendToExtension(MSK_EVENTS.PANEL_GITHUB_CONNECT, { source: "panel", intent: "authorize" });
     // 2) fallback: se a extensão não responder, o painel abre o OAuth server-side
     window.setTimeout(() => {
       if (extensionInstalled) return;
       window.open(GitHubService.authorizeUrl(), "_blank", "noopener,noreferrer");
     }, 900);
-  }, [extensionInstalled]);
+  }, [extensionInstalled, github.connected, github.repository]);
+
 
   /** Repositório escolhido no editor → aplica no projeto ativo e sincroniza na extensão. */
   const linkRepository = useCallback(
