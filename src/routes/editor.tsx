@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { LicenseGate } from "@/components/msk/LicenseGate";
+import { ExtensionIntegrityGate } from "@/components/msk/ExtensionIntegrityGate";
 import { MskPanel } from "@/components/msk/PanelShell";
 
 export const Route = createFileRoute("/editor")({
@@ -26,7 +27,9 @@ export const Route = createFileRoute("/editor")({
 function EditorPage() {
   return (
     <LicenseGate>
-      <MskPanel />
+      <ExtensionIntegrityGate>
+        <MskPanel />
+      </ExtensionIntegrityGate>
     </LicenseGate>
   );
 }
