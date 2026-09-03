@@ -4,6 +4,8 @@ import {
   ExternalLink,
   FileText,
   Loader2,
+  Mic,
+  Square,
   Paperclip,
   RotateCcw,
   Send,
@@ -34,6 +36,52 @@ export function Chat() {
   const [blocked, setBlocked] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const recRef = useRef<any>(null);
+  const [listening, setListening] = useState(false);
+  const [voiceError, setVoiceError] = useState<string | null>(null);
+
+  // Transcrição por voz (ditado): o texto cai direto na caixa de comando.
+  function toggleDictation() {
+    if (listening) {
+      recRef.current?.stop();
+      return;
+    }
+    const Ctor =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!Ctor) {
+      setVoiceError("Seu navegador não suporta transcrição por voz.");
+      return;
+    }
+    const rec = new Ctor();
+    rec.lang = "pt-BR";
+    rec.continuous = true;
+    rec.interimResults = true;
+    let base = "";
+    rec.onstart = () => {
+      base = text ? text.trim() + " " : "";
+      setVoiceError(null);
+      setListening(true);
+    };
+    rec.onresult = (event: any) => {
+      let out = "";
+      for (let i = event.resultIndex; i < event.results.length; i += 1) {
+        out += event.results[i][0].transcript;
+      }
+      setText((base + out).replace(/\s+/g, " ").trimStart());
+      if (event.results[event.results.length - 1].isFinal) {
+        base = (base + out).replace(/\s+/g, " ") + " ";
+      }
+    };
+    rec.onerror = () => {
+      setVoiceError("Não foi possível capturar o áudio. Verifique o microfone.");
+      setListening(false);
+    };
+    rec.onend = () => setListening(false);
+    recRef.current = rec;
+    rec.start();
+  }
+
+  useEffect(() => () => recRef.current?.stop?.(), []);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -178,6 +226,19 @@ export function Chat() {
               e.target.value = "";
             }}
           />
+          <button
+            type="button"
+            onClick={toggleDictation}
+            aria-label={listening ? "Parar transcrição" : "Enviar áudio para transcrever"}
+            title={listening ? "Parar e usar a transcrição" : "Falar (transcreve para a caixa de comando)"}
+            className={`rounded-md p-1.5 transition-colors ${
+              listening
+                ? "bg-destructive text-primary-foreground"
+                : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+            }`}
+          >
+            {listening ? <Square className="size-4" /> : <Mic className="size-4" />}
+          </button>
           <textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
@@ -201,6 +262,13 @@ export function Chat() {
             {sending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
           </button>
         </div>
+        {listening && (
+          <p className="mt-2 flex items-center gap-1.5 text-[11px] text-destructive">
+            <span className="size-1.5 animate-pulse rounded-full bg-destructive" />
+            Gravando… fale o comando e clique em parar para revisar antes de enviar.
+          </p>
+        )}
+        {voiceError && <p className="mt-2 text-[11px] text-destructive">{voiceError}</p>}
         {!activeProject && (
           <p className="mt-2 text-[11px] text-muted-foreground">
             Selecione um projeto para conversar com o MSK Agente.
