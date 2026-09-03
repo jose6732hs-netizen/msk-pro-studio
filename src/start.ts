@@ -26,4 +26,7 @@ const csrfMiddleware = createCsrfMiddleware({
 
 export const startInstance = createStart(() => ({
   requestMiddleware: [errorMiddleware, csrfMiddleware],
+  // Envia o token de sessão MSK no header Authorization de toda server function
+  // (nunca na URL). A autorização real acontece no servidor.
+  functionMiddleware: [attachMskAuth],
 }));
