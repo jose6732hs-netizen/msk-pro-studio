@@ -10,6 +10,7 @@ import {
   Tablet,
 } from "lucide-react";
 import { useState } from "react";
+import mskLogo from "@/assets/msk-logo.png.asset.json";
 import { useMsk } from "@/lib/msk/provider";
 import { GitHubService } from "@/lib/msk/services";
 import { NotificationsPopover } from "./Overlays";
