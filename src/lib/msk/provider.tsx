@@ -251,6 +251,34 @@ export function MskProvider({ children }: { children: ReactNode }) {
         }));
         apply(payload);
       }),
+      MskEventBus.on(MSK_EVENTS.GITHUB_STATUS, (payload) => {
+        setExtensionInstalled(true);
+        const repo =
+          (payload["repository"] as string) ?? (payload["githubRepoFull"] as string) ?? null;
+        setGithub((prev) => ({
+          ...prev,
+          connected: Boolean(payload["connected"] ?? repo),
+          user: (payload["user"] as string) ?? prev.user,
+          repository: repo ?? prev.repository,
+          branch: (payload["branch"] as string) ?? prev.branch,
+        }));
+      }),
+      MskEventBus.on(MSK_EVENTS.CHAT_MESSAGE, (payload) => {
+        const content = (payload["content"] as string) ?? (payload["text"] as string) ?? "";
+        if (!content.trim()) return;
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: (payload["id"] as string) ?? uid(),
+            project_id: (payload["projectId"] as string) ?? null,
+            role: ((payload["role"] as string) ?? "assistant") as MskMessage["role"],
+            content,
+            created_at: (payload["createdAt"] as string) ?? new Date().toISOString(),
+            attachments: [],
+          },
+        ]);
+      }),
+
       MskEventBus.on(MSK_EVENTS.EXTENSION_READY, () => setExtensionInstalled(true)),
       MskEventBus.on(MSK_EVENTS.ACTIVE_CONTEXT_UPDATED, () => setExtensionInstalled(true)),
     ];
