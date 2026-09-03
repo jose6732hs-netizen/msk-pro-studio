@@ -335,7 +335,7 @@ function DeviceMockup({
       <div
         className={`relative shrink-0 ${
           mobile
-            ? "aspect-[9/19.2] w-[300px]"
+            ? "aspect-[10.4/19.2] w-[320px]"
             : tablet
               ? "aspect-[3/4] w-[440px]"
               : "size-full"
