@@ -7,7 +7,6 @@ import {
   KeyRound,
   Loader2,
   Pin,
-  PinOff,
   RefreshCw,
   Sparkles,
 } from "lucide-react";
@@ -221,5 +220,3 @@ function AmbiguityPicker() {
     </div>
   );
 }
-
-export { PinOff };
