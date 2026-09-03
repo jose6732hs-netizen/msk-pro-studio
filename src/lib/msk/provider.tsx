@@ -145,7 +145,7 @@ export function MskProvider({ children }: { children: ReactNode }) {
 
   /* ---- MSK Bridge: projeto detectado pela extensão na Lovable ---- */
   useEffect(() => {
-    return MskEventBus.on(MSK_EVENTS.ACTIVE_PROJECT_CHANGED, (payload) => {
+    const off = MskEventBus.on(MSK_EVENTS.ACTIVE_PROJECT_CHANGED, (payload) => {
       const lovableId = (payload["lovableProjectId"] as string) ?? null;
       if (!lovableId) return;
       setProjects((prev) => {
