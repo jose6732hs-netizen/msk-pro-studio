@@ -118,16 +118,28 @@ export function TopBar({ onPublish }: { onPublish: () => void }) {
         <span className="hidden lg:inline">Atualizar</span>
       </button>
 
-      <a
-        href={github.connected ? "#conexoes" : GitHubService.authorizeUrl()}
+      <button
+        type="button"
+        onClick={() => {
+          if (github.connected) {
+            document.getElementById("conexoes")?.scrollIntoView({ behavior: "smooth" });
+            return;
+          }
+          connectGithub();
+        }}
         className="msk-panel flex items-center gap-1.5 px-2.5 py-1.5 text-xs transition-colors hover:text-foreground"
-        title={github.connected ? `GitHub: ${github.user ?? "conectado"}` : "Conectar GitHub"}
+        title={
+          github.connected
+            ? `GitHub: ${github.repository ?? github.user ?? "conectado"}`
+            : "Conectar GitHub (mesmo fluxo da extensão)"
+        }
       >
         <Github className="size-3.5" />
         <span className={github.connected ? "text-primary" : "text-muted-foreground"}>
-          {github.connected ? "Conectado" : "Não conectado"}
+          {github.connected ? github.repository ?? "Conectado" : "Conectar GitHub"}
         </span>
-      </a>
+      </button>
+
 
       <ExtensionBadge />
 
