@@ -7,6 +7,8 @@ import {
   Puzzle,
   RefreshCw,
   Rocket,
+  Share2,
+  Check,
   Smartphone,
   Tablet,
 } from "lucide-react";
@@ -39,6 +41,20 @@ export function TopBar({ onPublish }: { onPublish: () => void }) {
   const { ensureActive } = useLicense();
   const [bellOpen, setBellOpen] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  const [shared, setShared] = useState(false);
+
+  async function handleShare() {
+    const url =
+      activeProject?.preview_url ?? activeProject?.lovable_url ?? window.location.href;
+    try {
+      if (navigator.share) await navigator.share({ title: activeProject?.name ?? "MSK", url });
+      else await navigator.clipboard.writeText(url);
+      setShared(true);
+      setTimeout(() => setShared(false), 1600);
+    } catch {
+      /* cancelado pelo usuário */
+    }
+  }
 
   // Operação sensível: revalida a licença no SERVIDOR antes de publicar.
   async function handlePublish() {
@@ -52,17 +68,17 @@ export function TopBar({ onPublish }: { onPublish: () => void }) {
   const unread = notifications.filter((n) => !n.read).length;
 
   return (
-    <header className="msk-glass sticky top-0 z-40 flex flex-wrap items-center gap-2 px-3 py-2 md:gap-3 md:px-4">
+    <header className="msk-glass sticky top-0 z-40 flex flex-wrap items-center gap-1.5 px-2.5 py-1.5 md:px-3">
       <div className="flex items-center gap-2">
         <img
           src={mskLogo.url}
           alt="MSK Agente"
-          className="msk-neon-ring size-9 rounded-full bg-background object-contain"
+          className="msk-neon-ring size-7 rounded-full bg-background object-contain"
         />
         
         <div className="leading-tight">
-          <p className="text-sm font-semibold tracking-tight">MSK AGENTE</p>
-          <p className="hidden text-[10px] uppercase tracking-[0.18em] text-muted-foreground sm:block">
+          <p className="text-xs font-semibold tracking-tight">MSK AGENTE</p>
+          <p className="hidden text-[9px] uppercase tracking-[0.18em] text-muted-foreground lg:block">
             Painel profissional
           </p>
         </div>
@@ -71,10 +87,10 @@ export function TopBar({ onPublish }: { onPublish: () => void }) {
       <div className="mx-1 hidden h-6 w-px bg-border md:block" />
 
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium">
+        <p className="truncate text-xs font-medium">
           {activeProject ? activeProject.name : "Nenhum projeto selecionado"}
         </p>
-        <p className="flex items-center gap-1 truncate text-[11px] text-muted-foreground">
+        <p className="flex items-center gap-1 truncate text-[10px] text-muted-foreground">
           <GitBranch className="size-3" />
           {activeProject?.branch ?? "—"}
           <span className="mx-1">·</span>
@@ -90,7 +106,7 @@ export function TopBar({ onPublish }: { onPublish: () => void }) {
             onClick={() => setDevice(key)}
             aria-pressed={device === key}
             title={label}
-            className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs transition-colors ${
+            className={`flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] transition-colors ${
               device === key
                 ? "bg-primary text-primary-foreground"
                 : "text-muted-foreground hover:bg-secondary hover:text-foreground"
@@ -105,7 +121,7 @@ export function TopBar({ onPublish }: { onPublish: () => void }) {
       <button
         type="button"
         onClick={reloadPreview}
-        className="msk-panel flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
+        className="msk-panel flex items-center gap-1.5 px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:text-foreground"
         title="Atualizar preview"
       >
         {previewStatus === "updating" ? (
@@ -127,7 +143,7 @@ export function TopBar({ onPublish }: { onPublish: () => void }) {
           }
           connectGithub();
         }}
-        className="msk-panel flex items-center gap-1.5 px-2.5 py-1.5 text-xs transition-colors hover:text-foreground"
+        className="msk-panel flex items-center gap-1.5 px-2 py-1 text-[11px] transition-colors hover:text-foreground"
         title={
           github.connected
             ? `GitHub: ${github.repository ?? github.user ?? "conectado"}`
@@ -150,7 +166,7 @@ export function TopBar({ onPublish }: { onPublish: () => void }) {
         <button
           type="button"
           onClick={() => setBellOpen((v) => !v)}
-          className="msk-panel relative flex items-center px-2.5 py-1.5 text-muted-foreground hover:text-foreground"
+          className="msk-panel relative flex items-center px-2 py-1 text-muted-foreground hover:text-foreground"
           aria-label="Notificações"
         >
           <Bell className="size-3.5" />
@@ -165,8 +181,18 @@ export function TopBar({ onPublish }: { onPublish: () => void }) {
 
       <button
         type="button"
+        onClick={() => void handleShare()}
+        className="msk-panel flex items-center gap-1.5 px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:text-foreground"
+        title="Compartilhar link do projeto"
+      >
+        {shared ? <Check className="size-3.5 text-primary" /> : <Share2 className="size-3.5" />}
+        <span className="hidden lg:inline">{shared ? "Copiado" : "Compartilhar"}</span>
+      </button>
+
+      <button
+        type="button"
         onClick={() => void handlePublish()}
-        className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
+        className="flex items-center gap-1.5 rounded-md bg-primary px-2.5 py-1 text-[11px] font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
         disabled={!activeProject || publishing}
       >
         {publishing ? <Loader2 className="size-3.5 animate-spin" /> : <Rocket className="size-3.5" />}
