@@ -3,13 +3,17 @@ import {
   Globe,
   Maximize2,
   Minus,
+  ChevronDown,
   Plus,
   RefreshCw,
+  Route,
   ScanLine,
   X,
 } from "lucide-react";
 import type React from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
+import { discoverProjectRoutes } from "@/lib/msk/routes.functions";
 import { loadLocal, saveLocal } from "@/lib/msk/core";
 import { githubUrlFor, lovableUrlFor } from "@/lib/msk/active-context";
 import { useMsk } from "@/lib/msk/provider";
@@ -37,23 +41,51 @@ export function Preview() {
   const width = DEVICE_WIDTH[device];
   const production = activeProject?.production_url ?? activeContext.productionUrl ?? null;
 
-  /* Rotas/etapas do site (ex.: /, /admin, /land) por projeto */
-  const routeKey = `routes:${activeProject?.id ?? activeContext.lovableProjectId ?? "default"}`;
-  const [routes, setRoutes] = useState<string[]>(DEFAULT_ROUTES);
+  /* ETAPAS DO SITE — descobertas do projeto real; nada é pré-definido. */
+  const projectKey = activeProject?.id ?? activeContext.lovableProjectId ?? null;
+  const routeKey = `routes:${projectKey ?? "none"}`;
+  const [routes, setRoutes] = useState<string[]>([]);
   const [path, setPath] = useState("/");
   const [newRoute, setNewRoute] = useState("");
+  const [routesOpen, setRoutesOpen] = useState(false);
+  const [scanning, setScanning] = useState(false);
+  const discover = useServerFn(discoverProjectRoutes);
 
   useEffect(() => {
-    const saved = loadLocal<string[]>(routeKey, []);
-    setRoutes(saved.length ? saved : DEFAULT_ROUTES);
     setPath("/");
-  }, [routeKey]);
+    setRoutesOpen(false);
+    if (!projectKey) {
+      setRoutes([]);
+      return;
+    }
+    setRoutes(loadLocal<string[]>(routeKey, []));
+  }, [projectKey, routeKey]);
 
   const applyRoutes = (next: string[]) => {
     const unique = Array.from(new Set(next.map(normalizePath)));
     setRoutes(unique);
     saveLocal(routeKey, unique);
   };
+
+  // Identificou o projeto e tem preview: lê as rotas reais (sitemap/links).
+  useEffect(() => {
+    if (!projectKey || !url) return;
+    if (loadLocal<string[]>(routeKey, []).length) return;
+    let alive = true;
+    setScanning(true);
+    void discover({ data: { url } })
+      .then((res) => {
+        if (!alive) return;
+        const found = (res as { routes: string[] }).routes ?? [];
+        if (found.length) applyRoutes(found);
+      })
+      .catch(() => undefined)
+      .finally(() => alive && setScanning(false));
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectKey, url, routeKey]);
 
   const fullUrl = useMemo(() => (url ? joinPath(url, path) : null), [url, path]);
 
@@ -66,7 +98,92 @@ export function Preview() {
         <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
           <StatusDot status={previewStatus} />
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex min-w-0 items-center gap-1">
+          {projectKey && (
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setRoutesOpen((v) => !v)}
+                title="Etapas do site identificadas no projeto"
+                className="flex max-w-[180px] items-center gap-1 rounded-md border border-border px-2 py-1 font-mono text-[11px] text-foreground hover:bg-secondary"
+              >
+                <Route className="size-3 shrink-0 text-primary" />
+                <span className="truncate">{path}</span>
+                <ChevronDown className="size-3 shrink-0 text-muted-foreground" />
+              </button>
+              {routesOpen && (
+                <>
+                  <button
+                    type="button"
+                    aria-label="Fechar etapas"
+                    className="fixed inset-0 z-40 cursor-default"
+                    onClick={() => setRoutesOpen(false)}
+                  />
+                  <div className="absolute left-0 top-[calc(100%+6px)] z-50 w-56 rounded-xl border border-border bg-surface p-2 shadow-2xl">
+                    <p className="px-1 pb-1 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+                      {scanning ? "Lendo etapas do projeto…" : "Etapas do site"}
+                    </p>
+                    <div className="msk-scroll max-h-56 overflow-y-auto">
+                      {!routes.length && !scanning && (
+                        <p className="px-1 py-2 text-[11px] text-muted-foreground">
+                          Nenhuma etapa identificada ainda.
+                        </p>
+                      )}
+                      {routes.map((r) => (
+                        <span
+                          key={r}
+                          className={`group flex items-center justify-between gap-1 rounded-md px-2 py-1 text-[11px] ${
+                            path === r ? "bg-primary text-primary-foreground" : "hover:bg-secondary"
+                          }`}
+                        >
+                          <button
+                            type="button"
+                            className="min-w-0 flex-1 truncate text-left font-mono"
+                            onClick={() => {
+                              setPath(r);
+                              setRoutesOpen(false);
+                            }}
+                          >
+                            {r}
+                          </button>
+                          {r !== "/" && (
+                            <button
+                              type="button"
+                              aria-label={`Remover ${r}`}
+                              onClick={() => applyRoutes(routes.filter((x) => x !== r))}
+                              className="opacity-0 group-hover:opacity-100"
+                            >
+                              <X className="size-3" />
+                            </button>
+                          )}
+                        </span>
+                      ))}
+                    </div>
+                    <form
+                      className="mt-1 border-t border-border pt-1"
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        if (!newRoute.trim()) return;
+                        const value = normalizePath(newRoute);
+                        applyRoutes([...routes, value]);
+                        setPath(value);
+                        setNewRoute("");
+                        setRoutesOpen(false);
+                      }}
+                    >
+                      <input
+                        value={newRoute}
+                        onChange={(e) => setNewRoute(e.target.value)}
+                        placeholder="/nova-etapa"
+                        aria-label="Adicionar etapa do projeto"
+                        className="w-full rounded-md border border-border bg-background px-2 py-1 font-mono text-[11px] outline-none placeholder:text-muted-foreground focus:border-primary"
+                      />
+                    </form>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
           <IconBtn label="Diminuir zoom" onClick={() => setZoom(Math.max(0.25, zoom - 0.1))}>
             <Minus className="size-3.5" />
           </IconBtn>
@@ -110,54 +227,6 @@ export function Preview() {
             </a>
           )}
         </div>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-1 border-b border-border px-3 py-1.5">
-        <span className="mr-1 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-          Etapas
-        </span>
-        {routes.map((r) => (
-          <span
-            key={r}
-            className={`group flex items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] transition-colors ${
-              path === r
-                ? "border-primary bg-primary text-primary-foreground"
-                : "border-border text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <button type="button" onClick={() => setPath(r)} className="font-mono">
-              {r}
-            </button>
-            {r !== "/" && (
-              <button
-                type="button"
-                aria-label={`Remover ${r}`}
-                onClick={() => applyRoutes(routes.filter((x) => x !== r))}
-                className="opacity-0 transition-opacity group-hover:opacity-100"
-              >
-                <X className="size-3" />
-              </button>
-            )}
-          </span>
-        ))}
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (!newRoute.trim()) return;
-            const value = normalizePath(newRoute);
-            applyRoutes([...routes, value]);
-            setPath(value);
-            setNewRoute("");
-          }}
-        >
-          <input
-            value={newRoute}
-            onChange={(e) => setNewRoute(e.target.value)}
-            placeholder="/nova-rota"
-            aria-label="Adicionar rota do projeto"
-            className="w-28 rounded-md border border-border bg-background px-2 py-0.5 font-mono text-[11px] text-foreground outline-none placeholder:text-muted-foreground focus:border-primary"
-          />
-        </form>
       </div>
 
       <div
@@ -259,8 +328,6 @@ function ActionLink({ children, href }: { children: React.ReactNode; href: strin
     </a>
   );
 }
-
-const DEFAULT_ROUTES = ["/", "/admin", "/login", "/dashboard"];
 
 function normalizePath(value: string): string {
   const trimmed = value.trim().replace(/\s+/g, "");
