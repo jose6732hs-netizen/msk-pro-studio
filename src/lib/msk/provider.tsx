@@ -251,11 +251,64 @@ export function MskProvider({ children }: { children: ReactNode }) {
         }));
         apply(payload);
       }),
-      MskEventBus.on(MSK_EVENTS.EXTENSION_READY, () => setExtensionInstalled(true)),
+      MskEventBus.on(MSK_EVENTS.GITHUB_STATUS, (payload) => {
+        setExtensionInstalled(true);
+        const repo =
+          (payload["repository"] as string) ?? (payload["githubRepoFull"] as string) ?? null;
+        setGithub((prev) => ({
+          ...prev,
+          connected: Boolean(payload["connected"] ?? repo),
+          user: (payload["user"] as string) ?? prev.user,
+          repository: repo ?? prev.repository,
+          branch: (payload["branch"] as string) ?? prev.branch,
+        }));
+      }),
+      MskEventBus.on(MSK_EVENTS.CHAT_MESSAGE, (payload) => {
+        const content = (payload["content"] as string) ?? (payload["text"] as string) ?? "";
+        if (!content.trim()) return;
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: (payload["id"] as string) ?? uid(),
+            project_id: (payload["projectId"] as string) ?? null,
+            role: ((payload["role"] as string) ?? "assistant") as MskMessage["role"],
+            content,
+            created_at: (payload["createdAt"] as string) ?? new Date().toISOString(),
+            attachments: [],
+          },
+        ]);
+      }),
+
+      MskEventBus.on(MSK_EVENTS.EXTENSION_READY, () => {
+        setExtensionInstalled(true);
+        // pergunta à extensão se o GitHub oficial já está conectado
+        sendToExtension(MSK_EVENTS.PANEL_GITHUB_STATUS, { source: "panel" });
+      }),
       MskEventBus.on(MSK_EVENTS.ACTIVE_CONTEXT_UPDATED, () => setExtensionInstalled(true)),
     ];
+    sendToExtension(MSK_EVENTS.PANEL_GITHUB_STATUS, { source: "panel" });
     return () => offs.forEach((off) => off());
   }, []);
+
+  /* ---- GitHub conectado na extensão → reflete no editor ---- */
+  useEffect(() => {
+    const repo =
+      activeContext.githubOwner && activeContext.githubRepo
+        ? `${activeContext.githubOwner}/${activeContext.githubRepo}`
+        : null;
+    if (!repo) return;
+    setGithub((prev) =>
+      prev.connected && prev.repository === repo && prev.branch === (activeContext.branch ?? prev.branch)
+        ? prev
+        : {
+            ...prev,
+            connected: true,
+            repository: repo,
+            branch: activeContext.branch ?? prev.branch ?? "main",
+          },
+    );
+  }, [activeContext.githubOwner, activeContext.githubRepo, activeContext.branch]);
+
 
   /* ---- Carga inicial ---- */
   useEffect(() => {
@@ -450,7 +503,24 @@ export function MskProvider({ children }: { children: ReactNode }) {
       await ConversationService.append(session.access_token, message).catch(() => {});
       busRef.current?.post({ type: "message", message } as never);
 
+      // Motor único: com a extensão instalada, quem executa é o MESMO agente do popup.
+      if (extensionInstalled) {
+        sendToExtension(MSK_EVENTS.PANEL_CHAT_SEND, {
+          messageId: message.id,
+          projectId: activeProject.id,
+          lovableProjectId: activeProject.lovable_project_id,
+          conversationId: activeContext.conversationId,
+          repository: activeProject.repository,
+          branch: activeProject.branch,
+          prompt: message.content,
+          attachments: attachments.map((a) => ({ id: a.id, name: a.name, mime: a.mime })),
+        });
+        setAttachments([]);
+        return;
+      }
+
       try {
+
         const run = await AgentService.start(session.access_token, {
           projectId: activeProject.id,
           lovableProjectId: activeProject.lovable_project_id,
@@ -479,7 +549,7 @@ export function MskProvider({ children }: { children: ReactNode }) {
       }
       setAttachments([]);
     },
-    [activeProject, attachments, session.access_token],
+    [activeProject, attachments, session.access_token, extensionInstalled, activeContext.conversationId],
   );
 
   const addFiles = useCallback(
@@ -526,14 +596,17 @@ export function MskProvider({ children }: { children: ReactNode }) {
 
   /* ---- GitHub: mesma conexão da extensão (OAuth server-side) ---- */
   const connectGithub = useCallback(() => {
-    // 1) pede à extensão para abrir o MESMO fluxo do popup oficial
-    sendToExtension(MSK_EVENTS.PANEL_GITHUB_CONNECT, { source: "panel" });
+    // já conectado (pela extensão ou pelo backend): nada a autorizar
+    if (github.connected && github.repository) return;
+    // 1) pede à extensão para abrir o MESMO fluxo OAuth do popup oficial
+    sendToExtension(MSK_EVENTS.PANEL_GITHUB_CONNECT, { source: "panel", intent: "authorize" });
     // 2) fallback: se a extensão não responder, o painel abre o OAuth server-side
     window.setTimeout(() => {
       if (extensionInstalled) return;
       window.open(GitHubService.authorizeUrl(), "_blank", "noopener,noreferrer");
     }, 900);
-  }, [extensionInstalled]);
+  }, [extensionInstalled, github.connected, github.repository]);
+
 
   /** Repositório escolhido no editor → aplica no projeto ativo e sincroniza na extensão. */
   const linkRepository = useCallback(
