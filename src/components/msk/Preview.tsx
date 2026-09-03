@@ -341,14 +341,10 @@ function DeviceMockup({
               : "size-full"
         }`}
       >
-        {mobile && (
-          <>
-            <span className="absolute -left-[3px] top-[16%] h-7 w-[3px] rounded-l bg-[#5a070d]" />
-            <span className="absolute -left-[3px] top-[25%] h-11 w-[3px] rounded-l bg-[#5a070d]" />
-            <span className="absolute -left-[3px] top-[37%] h-11 w-[3px] rounded-l bg-[#5a070d]" />
-            <span className="absolute -right-[3px] top-[29%] h-16 w-[3px] rounded-r bg-[#5a070d]" />
-          </>
-        )}
+        <span className={`${mobile ? "block" : "hidden"} absolute -left-[3px] top-[16%] h-7 w-[3px] rounded-l bg-[#5a070d]`} />
+        <span className={`${mobile ? "block" : "hidden"} absolute -left-[3px] top-[25%] h-11 w-[3px] rounded-l bg-[#5a070d]`} />
+        <span className={`${mobile ? "block" : "hidden"} absolute -left-[3px] top-[37%] h-11 w-[3px] rounded-l bg-[#5a070d]`} />
+        <span className={`${mobile ? "block" : "hidden"} absolute -right-[3px] top-[29%] h-16 w-[3px] rounded-r bg-[#5a070d]`} />
         <div
           className={`size-full overflow-hidden ${
             mobile
@@ -363,21 +359,15 @@ function DeviceMockup({
               mobile ? "rounded-[39px] border-[8px] border-[#1a0204]" : tablet ? "rounded-[17px]" : ""
             }`}
           >
-            {mobile && (
-              <span className="pointer-events-none absolute left-1/2 top-[8px] z-10 flex h-[24px] w-[88px] -translate-x-1/2 items-center justify-start rounded-full bg-black pl-[7px] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]">
-                <span className="relative size-[13px] rounded-full bg-[#0b0f1a] ring-1 ring-white/15">
-                  <span className="absolute inset-[3px] rounded-full bg-[#12284a]" />
-                  <span className="absolute left-[2px] top-[1px] size-[3px] rounded-full bg-white/70" />
-                </span>
+            <span className={`${mobile ? "flex" : "hidden"} pointer-events-none absolute left-1/2 top-[8px] z-10 h-[24px] w-[88px] -translate-x-1/2 items-center justify-start rounded-full bg-black pl-[7px] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]`}>
+              <span className="relative size-[13px] rounded-full bg-[#0b0f1a] ring-1 ring-white/15">
+                <span className="absolute inset-[3px] rounded-full bg-[#12284a]" />
+                <span className="absolute left-[2px] top-[1px] size-[3px] rounded-full bg-white/70" />
               </span>
-            )}
-            {tablet && (
-              <span className="pointer-events-none absolute left-1/2 top-[4px] z-10 size-[6px] -translate-x-1/2 rounded-full bg-neutral-700" />
-            )}
+            </span>
+            <span className={`${tablet ? "block" : "hidden"} pointer-events-none absolute left-1/2 top-[4px] z-10 size-[6px] -translate-x-1/2 rounded-full bg-neutral-700`} />
             <div className="size-full overflow-hidden">{children}</div>
-            {mobile && (
-              <span className="pointer-events-none absolute bottom-[5px] left-1/2 h-[4px] w-24 -translate-x-1/2 rounded-full bg-white/60" />
-            )}
+            <span className={`${mobile ? "block" : "hidden"} pointer-events-none absolute bottom-[5px] left-1/2 h-[4px] w-24 -translate-x-1/2 rounded-full bg-white/60`} />
           </div>
         </div>
       </div>
