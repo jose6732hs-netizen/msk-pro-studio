@@ -1,6 +1,7 @@
 import {
   ExternalLink,
   Globe,
+  Link2,
   Maximize2,
   Minus,
   ChevronDown,
@@ -33,7 +34,23 @@ export function Preview() {
     previewStatus,
     previewKey,
     reloadPreview,
+    connectProjectUrl,
   } = useMsk();
+  const [urlOpen, setUrlOpen] = useState(false);
+  const [urlInput, setUrlInput] = useState("");
+  const [urlError, setUrlError] = useState<string | null>(null);
+
+  const submitProjectUrl = (e: React.FormEvent) => {
+    e.preventDefault();
+    const ok = connectProjectUrl(urlInput);
+    if (!ok) {
+      setUrlError("URL inválida");
+      return;
+    }
+    setUrlError(null);
+    setUrlInput("");
+    setUrlOpen(false);
+  };
   const frameRef = useRef<HTMLDivElement>(null);
   const url = preview.url ?? PreviewService.url(activeProject);
   const lovable = lovableUrlFor(activeProject, activeContext);
@@ -184,6 +201,43 @@ export function Preview() {
               )}
             </div>
           )}
+          <div className="relative">
+            <IconBtn label="Colar URL do projeto" onClick={() => setUrlOpen((v) => !v)}>
+              <Link2 className="size-3.5" />
+            </IconBtn>
+            {urlOpen && (
+              <>
+                <button
+                  type="button"
+                  aria-label="Fechar"
+                  className="fixed inset-0 z-40 cursor-default"
+                  onClick={() => setUrlOpen(false)}
+                />
+                <form
+                  onSubmit={submitProjectUrl}
+                  className="absolute right-0 top-[calc(100%+6px)] z-50 w-72 rounded-xl border border-border bg-surface p-2 shadow-2xl"
+                >
+                  <p className="px-1 pb-1 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+                    URL do projeto
+                  </p>
+                  <input
+                    autoFocus
+                    value={urlInput}
+                    onChange={(e) => setUrlInput(e.target.value)}
+                    placeholder="https://lovable.dev/projects/... ou https://seusite.lovable.app"
+                    className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-[11px] outline-none focus:border-primary"
+                  />
+                  {urlError && <p className="px-1 pt-1 text-[10px] text-destructive">{urlError}</p>}
+                  <button
+                    type="submit"
+                    className="mt-2 w-full rounded-md bg-primary py-1.5 text-[11px] font-semibold text-primary-foreground hover:bg-primary/90"
+                  >
+                    Refletir no preview
+                  </button>
+                </form>
+              </>
+            )}
+          </div>
           <IconBtn label="Diminuir zoom" onClick={() => setZoom(Math.max(0.25, zoom - 0.1))}>
             <Minus className="size-3.5" />
           </IconBtn>
@@ -236,13 +290,17 @@ export function Preview() {
         {contextLoading ? (
           <EmptyState text="Conectando ao projeto ativo da extensão..." />
         ) : !activeProject && !url ? (
-          <EmptyState text="Selecione um projeto para carregar o preview real." />
+          <EmptyState
+            text="Selecione um projeto na extensão ou cole a URL do projeto para ver o preview real."
+            actions={<ActionBtn onClick={() => setUrlOpen(true)}>Colar URL do projeto</ActionBtn>}
+          />
         ) : !url ? (
           <EmptyState
             text="Preview ainda não disponível para este projeto."
             actions={
               <>
                 <ActionBtn onClick={reloadPreview}>Preparar preview</ActionBtn>
+                <ActionBtn onClick={() => setUrlOpen(true)}>Colar URL do projeto</ActionBtn>
                 {lovable && <ActionLink href={lovable}>Abrir Lovable</ActionLink>}
                 {github && <ActionLink href={github}>Abrir repositório</ActionLink>}
               </>
