@@ -13,6 +13,7 @@ import {
 
 import { MskProvider, useMsk } from "@/lib/msk/provider";
 import { TopBar } from "./TopBar";
+import { ContextBar } from "./ContextBar";
 import { Preview } from "./Preview";
 import { Chat } from "./Chat";
 import {
@@ -145,8 +146,11 @@ function PanelInner() {
       )}
 
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row">
-        <main className="order-1 flex min-h-0 min-w-0 flex-1 flex-col p-2 md:p-3">
-          <Preview />
+        <main className="order-1 flex min-h-0 min-w-0 flex-1 flex-col">
+          <ContextBar onOpenTab={(t) => setTab(t as TabKey)} />
+          <div className="flex min-h-0 flex-1 flex-col p-2 md:p-3">
+            <Preview />
+          </div>
         </main>
 
         <div
