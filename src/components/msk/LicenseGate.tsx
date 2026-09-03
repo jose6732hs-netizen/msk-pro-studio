@@ -243,6 +243,10 @@ function Blocked({
           </div>
         )}
 
+        {(state.reason === "UNAUTHENTICATED" || state.reason === "LICENSE_NOT_FOUND") && (
+          <AccessForm onDone={onRecheck} />
+        )}
+
         <a
           href={expired ? RENEW_URL : PLANS_URL}
           className="mt-6 flex w-full items-center justify-center rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
