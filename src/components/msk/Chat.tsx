@@ -333,7 +333,7 @@ function VoiceWave({ stream }: { stream: MediaStream }) {
       const gap = 3;
       const barW = (width - gap * (bars - 1)) / bars;
       for (let i = 0; i < bars; i += 1) {
-        const v = data[Math.floor((i / bars) * data.length)] / 255;
+        const v = (data[Math.floor((i / bars) * data.length)] ?? 0) / 255;
         const h = Math.max(3, v * (height - 4));
         const x = i * (barW + gap);
         const y = (height - h) / 2;
