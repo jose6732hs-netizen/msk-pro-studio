@@ -1,15 +1,29 @@
 import { ExternalLink, Maximize2, Minus, Plus, RefreshCw, ScanLine } from "lucide-react";
+import type React from "react";
 import { useRef } from "react";
+import { githubUrlFor, lovableUrlFor } from "@/lib/msk/active-context";
 import { useMsk } from "@/lib/msk/provider";
 import { PreviewService } from "@/lib/msk/services";
 import { DEVICE_WIDTH } from "@/lib/msk/core";
 import { StatusDot } from "./TopBar";
 
 export function Preview() {
-  const { activeProject, device, zoom, setZoom, previewStatus, previewKey, reloadPreview } =
-    useMsk();
+  const {
+    activeProject,
+    activeContext,
+    preview,
+    contextLoading,
+    device,
+    zoom,
+    setZoom,
+    previewStatus,
+    previewKey,
+    reloadPreview,
+  } = useMsk();
   const frameRef = useRef<HTMLDivElement>(null);
-  const url = PreviewService.url(activeProject);
+  const url = preview.url ?? PreviewService.url(activeProject);
+  const lovable = lovableUrlFor(activeProject, activeContext);
+  const github = githubUrlFor(activeProject, activeContext);
   const width = DEVICE_WIDTH[device];
 
   return (
@@ -61,10 +75,21 @@ export function Preview() {
         ref={frameRef}
         className="msk-scroll flex min-h-0 flex-1 items-stretch justify-center overflow-auto bg-background p-2"
       >
-        {!activeProject ? (
+        {contextLoading ? (
+          <EmptyState text="Conectando ao projeto ativo da extensão..." />
+        ) : !activeProject && !url ? (
           <EmptyState text="Selecione um projeto para carregar o preview real." />
         ) : !url ? (
-          <EmptyState text="Este projeto ainda não tem URL de preview registrada no MSK." />
+          <EmptyState
+            text="Preview ainda não disponível para este projeto."
+            actions={
+              <>
+                <ActionBtn onClick={reloadPreview}>Preparar preview</ActionBtn>
+                {lovable && <ActionLink href={lovable}>Abrir Lovable</ActionLink>}
+                {github && <ActionLink href={github}>Abrir repositório</ActionLink>}
+              </>
+            }
+          />
         ) : (
           <div
             className="msk-panel h-full w-full overflow-hidden bg-surface shadow-lg"
@@ -77,7 +102,7 @@ export function Preview() {
             }}
           >
             <iframe
-              key={`${previewKey}-${url}`}
+              key={`${previewKey}-${activeProject?.id ?? "ctx"}-${url}`}
               src={PreviewService.bust(url)}
               title={`Preview de ${activeProject.name}`}
               className="size-full border-0 bg-white"
@@ -112,10 +137,36 @@ function IconBtn({
   );
 }
 
-function EmptyState({ text }: { text: string }) {
+function EmptyState({ text, actions }: { text: string; actions?: React.ReactNode }) {
   return (
-    <div className="msk-panel flex h-full min-h-[320px] w-full items-center justify-center p-8">
+    <div className="msk-panel flex h-full min-h-[320px] w-full flex-col items-center justify-center gap-3 p-8">
       <p className="max-w-xs text-center text-sm text-muted-foreground">{text}</p>
+      {actions && <div className="flex flex-wrap justify-center gap-2">{actions}</div>}
     </div>
+  );
+}
+
+function ActionBtn({ children, onClick }: { children: React.ReactNode; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground"
+    >
+      {children}
+    </button>
+  );
+}
+
+function ActionLink({ children, href }: { children: React.ReactNode; href: string }) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noreferrer"
+      className="rounded-md border border-border px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground"
+    >
+      {children}
+    </a>
   );
 }
