@@ -505,7 +505,23 @@ export function MskProvider({ children }: { children: ReactNode }) {
 
       // Motor único: com a extensão instalada, quem executa é o MESMO agente do popup.
       if (extensionInstalled) {
+        const run: MskRun = {
+          id: message.id,
+          project_id: activeProject.id,
+          request: message.content,
+          status: "running",
+          steps: [
+            { key: "received", label: "Pedido recebido", status: "done" },
+            { key: "validating", label: "Validando licença, projeto e repositório", status: "running" },
+          ],
+          repository: activeProject.repository,
+          branch: activeProject.branch,
+          created_at: new Date().toISOString(),
+        };
+        setRuns((prev) => [run, ...prev]);
+        AgentService.saveLocalRun(run);
         sendToExtension(MSK_EVENTS.PANEL_CHAT_SEND, {
+          runId: run.id,
           messageId: message.id,
           projectId: activeProject.id,
           lovableProjectId: activeProject.lovable_project_id,
