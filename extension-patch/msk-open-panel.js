@@ -159,8 +159,8 @@
 
   function setOpen(btn) {
     btn.textContent = "PAINEL ↗";
-    btn.style.background = "#39ff5f";
-    btn.style.color = "#05130a";
+    btn.style.background = "#fde047";
+    btn.style.color = "#1a1a00";
     btn.onclick = () => void openPanel();
   }
 
@@ -221,7 +221,7 @@
     }
     const left = (clock.expires - Date.now()) / 1000;
     const dot = left < 3600 ? "🔴" : left < 86400 ? "🟡" : "🟢";
-    el.style.color = left < 3600 ? "#ff5f5f" : left < 86400 ? "#ffd75f" : "#39ff5f";
+    el.style.color = left < 3600 ? "#ff5f5f" : left < 86400 ? "#ffd75f" : "#fde047";
     el.textContent = dot + " " + fmt(left);
   }
 
@@ -232,8 +232,8 @@
     bar.id = "msk-panel-bar";
     bar.style.cssText =
       "position:fixed;left:0;right:0;bottom:0;z-index:2147483000;display:flex;align-items:center;" +
-      "gap:10px;height:40px;padding:0 10px;box-sizing:border-box;background:#050705;" +
-      "border-top:1px solid #172a1b";
+      "gap:10px;height:40px;padding:0 10px;box-sizing:border-box;background:#050507;" +
+      "border-top:1px solid #2a2a1b";
 
     const btn = document.createElement("button");
     btn.id = "msk-open-panel";
