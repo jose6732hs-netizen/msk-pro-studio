@@ -334,11 +334,11 @@ function DeviceMockup({
     >
       <div
         className={`relative shrink-0 ${
-          mobile
-            ? "aspect-[11.6/19.2] h-full max-w-full"
-            : tablet
-              ? "aspect-[3/4] h-full max-w-full"
-              : "size-full"
+            mobile
+              ? "aspect-[11.6/19.2] h-full max-w-full"
+              : tablet
+                ? "aspect-[4/5] h-full max-w-full"
+                : "size-full"
         }`}
       >
         <span className={`${mobile ? "block" : "hidden"} absolute -left-[3px] top-[16%] h-7 w-[3px] rounded-l bg-[#5a070d]`} />
