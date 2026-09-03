@@ -279,11 +279,36 @@ export function MskProvider({ children }: { children: ReactNode }) {
         ]);
       }),
 
-      MskEventBus.on(MSK_EVENTS.EXTENSION_READY, () => setExtensionInstalled(true)),
+      MskEventBus.on(MSK_EVENTS.EXTENSION_READY, () => {
+        setExtensionInstalled(true);
+        // pergunta à extensão se o GitHub oficial já está conectado
+        sendToExtension(MSK_EVENTS.PANEL_GITHUB_STATUS, { source: "panel" });
+      }),
       MskEventBus.on(MSK_EVENTS.ACTIVE_CONTEXT_UPDATED, () => setExtensionInstalled(true)),
     ];
+    sendToExtension(MSK_EVENTS.PANEL_GITHUB_STATUS, { source: "panel" });
     return () => offs.forEach((off) => off());
   }, []);
+
+  /* ---- GitHub conectado na extensão → reflete no editor ---- */
+  useEffect(() => {
+    const repo =
+      activeContext.githubOwner && activeContext.githubRepo
+        ? `${activeContext.githubOwner}/${activeContext.githubRepo}`
+        : null;
+    if (!repo) return;
+    setGithub((prev) =>
+      prev.connected && prev.repository === repo && prev.branch === (activeContext.branch ?? prev.branch)
+        ? prev
+        : {
+            ...prev,
+            connected: true,
+            repository: repo,
+            branch: activeContext.branch ?? prev.branch ?? "main",
+          },
+    );
+  }, [activeContext.githubOwner, activeContext.githubRepo, activeContext.branch]);
+
 
   /* ---- Carga inicial ---- */
   useEffect(() => {
