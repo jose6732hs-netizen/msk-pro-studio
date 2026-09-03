@@ -4,6 +4,7 @@ import {
   Github,
   Loader2,
   Monitor,
+  Puzzle,
   RefreshCw,
   Rocket,
   Smartphone,
@@ -17,6 +18,7 @@ import { NotificationsPopover } from "./Overlays";
 import { LicenseCountdown } from "./License";
 import { useLicense } from "@/lib/msk/license-context";
 import type { Device } from "@/lib/msk/core";
+import { useExtensionBridge } from "@/lib/msk/use-bridge";
 
 const DEVICES: { key: Device; label: string; Icon: typeof Monitor }[] = [
   { key: "desktop", label: "Desktop", Icon: Monitor },
@@ -175,6 +177,38 @@ export function StatusDot({ status }: { status: string }) {
     <span className="inline-flex items-center gap-1.5">
       <span className={`size-1.5 rounded-full ${item.cls} ${item.pulse ? "msk-dot-pulse" : ""}`} />
       {item.label}
+    </span>
+  );
+}
+
+/** Status da extensão MSK detectada via MSK Bridge (handshake seguro). */
+function ExtensionBadge() {
+  const ext = useExtensionBridge();
+  const label = ext.checking
+    ? "Verificando…"
+    : ext.installed
+      ? `Extensão v${ext.extensionVersion ?? "?"}`
+      : "Extensão não detectada";
+  const tone = ext.checking
+    ? "text-muted-foreground"
+    : ext.installed
+      ? ext.compatible
+        ? "text-primary"
+        : "text-destructive"
+      : "text-muted-foreground";
+  return (
+    <span
+      className="msk-panel hidden items-center gap-1.5 px-2.5 py-1.5 text-xs sm:flex"
+      title={
+        ext.installed
+          ? ext.compatible
+            ? `MSK Extension conectada${ext.activeLovableProjectId ? ` · projeto ${ext.activeLovableProjectId}` : ""}`
+            : "Sua extensão MSK precisa ser atualizada."
+          : "Extensão MSK não detectada neste navegador."
+      }
+    >
+      <Puzzle className="size-3.5" />
+      <span className={tone}>{label}</span>
     </span>
   );
 }
