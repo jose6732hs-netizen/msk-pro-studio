@@ -14,6 +14,7 @@ import {
   emptySession,
   loadLocal,
   readHandoff,
+  readHandoffProjects,
   saveLocal,
   uid,
   type Device,
@@ -105,11 +106,23 @@ export function MskProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const stored = loadLocal<MskSession>("session", emptySession);
     const handoff = readHandoff();
+    const handoffProjects = readHandoffProjects();
     const next: MskSession = { ...stored, ...(handoff ?? {}) } as MskSession;
     setSession(next);
     saveLocal("session", next);
-    const active = next.active_project_id ?? loadLocal<string | null>("active_project_id", null);
+
+    // Projeto/repositório e histórico enviados pelo popup da extensão
+    let merged: MskProject[] = [];
+    for (const p of handoffProjects) merged = ProjectService.upsertLocal(p);
+    if (merged.length) setProjects(merged);
+
+    const fromHandoff = handoffProjects.at(-1)?.id ?? null;
+    const active =
+      fromHandoff ??
+      next.active_project_id ??
+      loadLocal<string | null>("active_project_id", null);
     setActiveId(active);
+    if (active) saveLocal("active_project_id", active);
   }, []);
 
   /* ---- Barramento popup ↔ painel ---- */
