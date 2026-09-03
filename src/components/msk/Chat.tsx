@@ -11,6 +11,7 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useLicense } from "@/lib/msk/license-context";
 import { useMsk } from "@/lib/msk/provider";
 import { AttachmentService } from "@/lib/msk/services";
 import { RUN_STEPS, timeAgo, type MskRun } from "@/lib/msk/core";
@@ -26,8 +27,10 @@ export function Chat() {
     addFiles,
     removeAttachment,
   } = useMsk();
+  const { ensureActive } = useLicense();
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
+  const [blocked, setBlocked] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -43,6 +46,13 @@ export function Chat() {
   async function submit() {
     if (!text.trim() || !activeProject) return;
     setSending(true);
+    // Nova execução só começa com licença confirmada pelo SERVIDOR.
+    if (!(await ensureActive())) {
+      setBlocked(true);
+      setSending(false);
+      return;
+    }
+    setBlocked(false);
     const value = text;
     setText("");
     await sendMessage(value);

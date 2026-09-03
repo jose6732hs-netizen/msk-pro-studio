@@ -11,6 +11,7 @@ import {
   Youtube,
 } from "lucide-react";
 import { useMemo, useState } from "react";
+import { useLicense } from "@/lib/msk/license-context";
 import { useMsk } from "@/lib/msk/provider";
 import { BrandingService, GitHubService } from "@/lib/msk/services";
 import { formatRemaining, timeAgo, type MskProject } from "@/lib/msk/core";
@@ -139,7 +140,9 @@ function NewProjectForm({
 }: {
   onCreate: (p: { name: string; lovable_project_id?: string | null; preview_url?: string | null; repository?: string | null }) => void;
 }) {
+  const { ensureActive } = useLicense();
   const [open, setOpen] = useState(false);
+  const [denied, setDenied] = useState(false);
   const [name, setName] = useState("");
   const [lovableId, setLovableId] = useState("");
   const [preview, setPreview] = useState("");
@@ -149,7 +152,15 @@ function NewProjectForm({
     return (
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={async () => {
+          // Antes de criar projeto/repositório: licença revalidada no servidor.
+          if (await ensureActive()) {
+            setDenied(false);
+            setOpen(true);
+          } else {
+            setDenied(true);
+          }
+        }}
         className="msk-panel flex w-full items-center justify-center gap-1.5 p-2 text-xs text-muted-foreground hover:text-foreground"
       >
         <Plus className="size-3.5" /> Novo projeto
