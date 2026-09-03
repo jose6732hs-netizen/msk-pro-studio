@@ -13,6 +13,8 @@ export type LicenseReason =
   | "UNAUTHENTICATED"
   | "BACKEND_NOT_CONFIGURED";
 
+export type LicenseMetrics = Record<string, number> | null;
+
 export interface LicenseActive {
   active: true;
   licenseId: string | null;
@@ -22,6 +24,10 @@ export interface LicenseActive {
   expiresAt: string;
   serverNow: string;
   remainingSeconds: number;
+  /** Limites do plano cadastrados pelo Admin (ex.: { edicoes: 100, projetos: 10 }). */
+  limits: LicenseMetrics;
+  /** Uso real acumulado no período (ex.: { edicoes: 42, tokens: 35280 }). */
+  usage: LicenseMetrics;
 }
 
 export interface LicenseInactive {
