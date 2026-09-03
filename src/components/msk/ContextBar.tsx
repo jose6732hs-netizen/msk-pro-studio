@@ -1,3 +1,4 @@
+import { useCallback, useState } from "react";
 import {
   Boxes,
   ExternalLink,
@@ -9,9 +10,11 @@ import {
   Pin,
   RefreshCw,
   Sparkles,
+  X,
 } from "lucide-react";
 import { useMsk } from "@/lib/msk/provider";
 import { githubUrlFor, lovableUrlFor, type SyncState } from "@/lib/msk/active-context";
+
 
 const TONE: Record<SyncState, string> = {
   ready: "bg-primary",
@@ -45,7 +48,14 @@ export function ContextBar({ onOpenTab }: { onOpenTab?: (tab: string) => void })
     reloadPreview,
   } = useMsk();
 
+  const [ambiguityClosed, setAmbiguityClosed] = useState(false);
+  const [hiddenCandidates, setHiddenCandidates] = useState<string[]>([]);
+  const hideCandidate = useCallback((id: string) => {
+    setHiddenCandidates((prev) => (prev.includes(id) ? prev : [...prev, id]));
+  }, []);
+
   const lovable = lovableUrlFor(activeProject, activeContext);
+
   const github = githubUrlFor(activeProject, activeContext);
   const branch = activeProject?.branch ?? activeContext.branch ?? null;
   const repo =
@@ -159,14 +169,23 @@ export function ContextBar({ onOpenTab }: { onOpenTab?: (tab: string) => void })
         </div>
       )}
 
-      {resolution.status === "ambiguous" && (
-        <div className="rounded-md border border-yellow-500/40 bg-yellow-500/10 px-2 py-1.5 text-[11px]">
+      {resolution.status === "ambiguous" && !ambiguityClosed && (
+        <div className="relative rounded-md border border-yellow-500/40 bg-yellow-500/10 px-2 py-1.5 pr-7 text-[11px]">
+          <button
+            type="button"
+            aria-label="Fechar aviso"
+            onClick={() => setAmbiguityClosed(true)}
+            className="absolute right-1 top-1 rounded p-0.5 text-muted-foreground hover:bg-secondary hover:text-foreground"
+          >
+            <X className="size-3.5" />
+          </button>
           <p className="mb-1 text-foreground">
             Encontrei mais de uma configuração para este projeto. Selecione a correta:
           </p>
-          <AmbiguityPicker />
+          <AmbiguityPicker hidden={hiddenCandidates} onHide={hideCandidate} />
         </div>
       )}
+
 
       {resolution.status === "unknown" && !contextDismissed && (
         <div className="flex flex-wrap items-center gap-2 rounded-md border border-primary/40 bg-primary/10 px-2 py-1.5 text-[11px]">
@@ -208,26 +227,43 @@ export function ContextBar({ onOpenTab }: { onOpenTab?: (tab: string) => void })
   );
 }
 
-function AmbiguityPicker() {
+function AmbiguityPicker({ hidden, onHide }: { hidden: string[]; onHide: (id: string) => void }) {
   const { resolution, setActiveProject } = useMsk();
+  const candidates = resolution.candidates.filter((c) => !hidden.includes(c.id));
+  if (candidates.length === 0) {
+    return <p className="text-muted-foreground">Nenhuma configuração restante.</p>;
+  }
   return (
     <div className="flex flex-wrap gap-1">
-      {resolution.candidates.map((c) => (
-        <button
+      {candidates.map((c) => (
+        <span
           key={c.id}
-          type="button"
-          onClick={() => setActiveProject(c.id)}
-          className="flex items-center gap-1 rounded-md border border-border px-2 py-1 text-foreground hover:bg-secondary"
+          className="flex items-center gap-1 rounded-md border border-border px-2 py-1 text-foreground"
         >
-          {c.name}
-          {c.branch && (
-            <span className="flex items-center gap-1 text-muted-foreground">
-              <GitBranch className="size-3" />
-              {c.branch}
-            </span>
-          )}
-        </button>
+          <button
+            type="button"
+            onClick={() => setActiveProject(c.id)}
+            className="flex items-center gap-1 hover:text-primary"
+          >
+            {c.name}
+            {c.branch && (
+              <span className="flex items-center gap-1 text-muted-foreground">
+                <GitBranch className="size-3" />
+                {c.branch}
+              </span>
+            )}
+          </button>
+          <button
+            type="button"
+            aria-label={`Remover ${c.name}`}
+            onClick={() => onHide(c.id)}
+            className="rounded p-0.5 text-muted-foreground hover:bg-secondary hover:text-foreground"
+          >
+            <X className="size-3" />
+          </button>
+        </span>
       ))}
     </div>
   );
+
 }
