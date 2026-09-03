@@ -179,25 +179,6 @@ export function TopBar({ onPublish }: { onPublish: () => void }) {
         {bellOpen && <NotificationsPopover onClose={() => setBellOpen(false)} />}
       </div>
 
-      <button
-        type="button"
-        onClick={() => void handleShare()}
-        className="msk-panel flex items-center gap-1.5 px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:text-foreground"
-        title="Compartilhar link do projeto"
-      >
-        {shared ? <Check className="size-3.5 text-primary" /> : <Share2 className="size-3.5" />}
-        <span className="hidden lg:inline">{shared ? "Copiado" : "Compartilhar"}</span>
-      </button>
-
-      <button
-        type="button"
-        onClick={() => void handlePublish()}
-        className="flex items-center gap-1.5 rounded-md bg-primary px-2.5 py-1 text-[11px] font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
-        disabled={!activeProject || publishing}
-      >
-        {publishing ? <Loader2 className="size-3.5 animate-spin" /> : <Rocket className="size-3.5" />}
-        Publicar
-      </button>
     </header>
   );
 }
