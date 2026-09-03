@@ -1,11 +1,12 @@
 /**
  * MSK — patch do popup/sidepanel (não altera nada do que já existe).
  *
- * 1. Adiciona o botão "ABRIR PAINEL PROFISSIONAL".
- * 2. Ao abrir, VINCULA automaticamente a licença já validada no popup:
- *    grava { email, key } em localStorage do painel via chrome.scripting —
- *    nenhum token, licença ou chave vai na URL.
- * 3. Sem licença ativa, o botão vira "RENOVAR PLANO".
+ * 1. Adiciona uma BARRA COMPACTA no rodapé (não cobre o chat nem as mensagens):
+ *    botão pequeno "PAINEL ↗" + relógio da licença na mesma linha.
+ * 2. Ao abrir, VINCULA automaticamente ao painel: licença validada + contexto
+ *    ativo (projeto Lovable, repositório GitHub, branch, preview) via
+ *    chrome.scripting — nenhum token/segredo vai na URL.
+ * 3. Sem licença ativa, o botão vira "RENOVAR".
  *
  * A segurança real é do servidor (/api/license/status e /api/editor/*).
  */
@@ -13,6 +14,7 @@
   const EDITOR_URL = "https://msksystem.online/editor";
   const STATUS_URL = "https://msksystem.online/api/license/status";
   const PLANS_URL = "https://msksystem.online/planos";
+  const BAR_H = 64;
 
   function linkedPayload(license) {
     return {
@@ -21,14 +23,94 @@
     };
   }
 
-  function injectLink(tabId, payload) {
-    if (!payload.email || !payload.key) return;
+  /* ---------------- contexto ativo (projeto + GitHub) ---------------- */
+
+  const pick = (obj, keys) => {
+    for (const k of keys) {
+      const v = obj?.[k];
+      if (typeof v === "string" && v.trim()) return v.trim();
+      if (v && typeof v === "object") {
+        const nested = pick(v, keys);
+        if (nested) return nested;
+      }
+    }
+    return null;
+  };
+
+  async function readActiveContext() {
+    let all = {};
+    try {
+      all = (await chrome.storage.local.get(null)) || {};
+    } catch (e) {
+      all = {};
+    }
+    const repoFull =
+      pick(all, ["repository", "repoFullName", "fullName", "githubRepoFull"]) || null;
+    const owner = pick(all, ["githubOwner", "owner", "repoOwner"]);
+    const repo = pick(all, ["githubRepo", "repoName"]);
+    const ctx = {
+      userId: pick(all, ["userId", "user_id"]),
+      projectId: pick(all, ["projectId", "project_id"]),
+      lovableProjectId: pick(all, ["lovableProjectId", "lovable_project_id"]),
+      lovableProjectName: pick(all, ["lovableProjectName", "projectName", "project_name"]),
+      lovableUrl: pick(all, ["lovableUrl", "lovable_url"]),
+      githubOwner: owner || (repoFull ? repoFull.split("/")[0] : null),
+      githubRepo: repo || (repoFull ? repoFull.split("/")[1] : null),
+      githubRepoUrl: pick(all, ["githubRepoUrl", "repoUrl", "html_url"]),
+      branch: pick(all, ["branch", "activeBranch", "defaultBranch"]),
+      previewUrl: pick(all, ["previewUrl", "preview_url"]),
+      productionUrl: pick(all, ["productionUrl", "production_url"]),
+      conversationId: pick(all, ["conversationId", "conversation_id"]),
+      activeRunId: pick(all, ["activeRunId", "currentRunId"]),
+      aiProvider: pick(all, ["aiProvider"]),
+      aiModel: pick(all, ["aiModel"]),
+      extensionVersion: chrome.runtime?.getManifest?.().version || null,
+      updatedAt: new Date().toISOString(),
+    };
+    // fallback: pega o projeto Lovable a partir da aba ativa
+    if (!ctx.lovableProjectId) {
+      try {
+        const tabs = await chrome.tabs.query({ url: "https://lovable.dev/projects/*" });
+        const m = tabs?.[0]?.url?.match(/projects\/([0-9a-f-]{36})/i);
+        if (m) {
+          ctx.lovableProjectId = m[1];
+          ctx.lovableUrl = tabs[0].url;
+          if (!ctx.lovableProjectName && tabs[0].title)
+            ctx.lovableProjectName = String(tabs[0].title).replace(/\s*[-–|].*$/, "").trim();
+        }
+      } catch (e) {
+        /* sem permissão de tabs: segue sem fallback */
+      }
+    }
+    const hasAny = Object.values(ctx).some(
+      (v, i) => i < 12 && typeof v === "string" && v.length > 0,
+    );
+    return hasAny ? ctx : null;
+  }
+
+  function inject(tabId, payload, ctx) {
+    if (!payload.email && !payload.key && !ctx) return;
     chrome.scripting.executeScript({
       target: { tabId },
-      args: [payload],
-      func: (data) => {
+      args: [payload, ctx],
+      func: (lic, context) => {
         try {
-          localStorage.setItem("msk.panel.license", JSON.stringify(data));
+          if (lic && lic.email && lic.key)
+            localStorage.setItem("msk.panel.license", JSON.stringify(lic));
+          if (context) {
+            const prev = (() => {
+              try {
+                return JSON.parse(localStorage.getItem("msk.panel.active_context") || "{}");
+              } catch (e) {
+                return {};
+              }
+            })();
+            const merged = { ...prev };
+            Object.keys(context).forEach((k) => {
+              if (context[k] !== null && context[k] !== undefined) merged[k] = context[k];
+            });
+            localStorage.setItem("msk.panel.active_context", JSON.stringify(merged));
+          }
         } catch (e) {
           /* painel decide o que fazer */
         }
@@ -39,26 +121,27 @@
   async function openPanel() {
     const stored = await chrome.storage.local.get(["mskLicense"]);
     const payload = linkedPayload(stored?.mskLicense);
+    const ctx = await readActiveContext();
     const tab = await chrome.tabs.create({ url: EDITOR_URL });
     if (!tab?.id) return;
     const listener = (tabId, info) => {
       if (tabId !== tab.id || info.status !== "complete") return;
       chrome.tabs.onUpdated.removeListener(listener);
-      injectLink(tab.id, payload);
+      inject(tab.id, payload, ctx);
       chrome.tabs.reload(tab.id);
     };
     chrome.tabs.onUpdated.addListener(listener);
   }
 
   function setRenew(btn) {
-    btn.textContent = "RENOVAR PLANO";
+    btn.textContent = "RENOVAR";
     btn.style.background = "#1f1f1f";
     btn.style.color = "#fff";
     btn.onclick = () => chrome.tabs.create({ url: PLANS_URL });
   }
 
   function setOpen(btn) {
-    btn.textContent = "ABRIR PAINEL PROFISSIONAL ↗";
+    btn.textContent = "PAINEL ↗";
     btn.style.background = "#39ff5f";
     btn.style.color = "#05130a";
     btn.onclick = () => void openPanel();
@@ -81,7 +164,7 @@
     const h = p(Math.floor((s % 86400) / 3600));
     const m = p(Math.floor((s % 3600) / 60));
     const ss = p(s % 60);
-    if (d > 0) return p(d) + " DIAS · " + h + ":" + m + ":" + ss;
+    if (d > 0) return d + "d " + h + ":" + m + ":" + ss;
     if (Number(h) > 0) return h + ":" + m + ":" + ss;
     return m + ":" + ss;
   }
@@ -115,42 +198,52 @@
 
   function paintClock(el) {
     if (!clock.active) {
-      el.textContent = "🔴 LICENÇA INATIVA";
+      el.textContent = "🔴 licença inativa";
       el.style.color = "#ff5f5f";
       return;
     }
     const left = (clock.expires - Date.now()) / 1000;
     const dot = left < 3600 ? "🔴" : left < 86400 ? "🟡" : "🟢";
     el.style.color = left < 3600 ? "#ff5f5f" : left < 86400 ? "#ffd75f" : "#39ff5f";
-    el.textContent = dot + " " + clock.plan + " · " + fmt(left) + " restantes";
-  }
-
-  function mountClock() {
-    if (document.getElementById("msk-license-clock")) return;
-    const el = document.createElement("div");
-    el.id = "msk-license-clock";
-    el.style.cssText =
-      "margin:8px 12px 0;padding:8px 10px;border:1px solid #1f2a20;border-radius:10px;" +
-      "background:#0a0f0b;font:600 11px/1.2 monospace;text-align:center;letter-spacing:.04em";
-    document.body.appendChild(el);
-    paintClock(el);
-    setInterval(() => paintClock(el), 1000);
-    void syncLicense().then(() => paintClock(el));
-    setInterval(() => void syncLicense(), 60000);
+    el.textContent = dot + " " + fmt(left);
   }
 
   function mount() {
-    mountClock();
-    if (document.getElementById("msk-open-panel")) return;
+    if (document.getElementById("msk-panel-bar")) return;
+
+    const bar = document.createElement("div");
+    bar.id = "msk-panel-bar";
+    bar.style.cssText =
+      "position:fixed;left:0;right:0;bottom:0;z-index:2147483000;display:flex;align-items:center;" +
+      "gap:8px;height:28px;padding:0 8px;box-sizing:border-box;background:#050705;" +
+      "border-top:1px solid #172a1b";
+
     const btn = document.createElement("button");
     btn.id = "msk-open-panel";
     btn.type = "button";
     btn.style.cssText =
-      "display:block;width:calc(100% - 24px);margin:10px 12px;padding:12px;border:0;border-radius:10px;" +
-      "font-weight:700;letter-spacing:.04em;cursor:pointer;font-size:12px";
+      "flex:0 0 auto;border:0;border-radius:6px;padding:4px 10px;font:700 10px/1 system-ui,sans-serif;" +
+      "letter-spacing:.04em;cursor:pointer";
     setOpen(btn);
-    document.body.appendChild(btn);
+
+    const clockEl = document.createElement("span");
+    clockEl.id = "msk-license-clock";
+    clockEl.style.cssText =
+      "margin-left:auto;font:600 10px/1 ui-monospace,monospace;letter-spacing:.03em;white-space:nowrap";
+
+    bar.appendChild(btn);
+    bar.appendChild(clockEl);
+    document.body.appendChild(bar);
+
+    // Não cobre o chat nem a área de mensagens.
+    const pad = document.body.style.paddingBottom;
+    if (!pad || parseInt(pad, 10) < 28) document.body.style.paddingBottom = "28px";
+
     void refresh(btn);
+    paintClock(clockEl);
+    setInterval(() => paintClock(clockEl), 1000);
+    void syncLicense().then(() => paintClock(clockEl));
+    setInterval(() => void syncLicense(), 60000);
   }
 
   if (document.readyState === "loading") {
@@ -167,4 +260,5 @@
     const btn = document.getElementById("msk-open-panel");
     if (btn) void refresh(btn);
   }, 60000);
+  void BAR_H;
 })();

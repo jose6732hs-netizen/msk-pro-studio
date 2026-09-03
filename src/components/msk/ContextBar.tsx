@@ -68,12 +68,23 @@ export function ContextBar({ onOpenTab }: { onOpenTab?: (tab: string) => void })
               ? "Conectando ao projeto..."
               : (activeProject?.name ?? activeContext.lovableProjectName ?? "Sem projeto ativo")}
           </span>
+          {(activeProject?.lovable_project_id ?? activeContext.lovableProjectId) && (
+            <span className="shrink-0 rounded-md bg-secondary px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+              ID {(activeProject?.lovable_project_id ?? activeContext.lovableProjectId)!.slice(0, 8)}
+            </span>
+          )}
+          {repo && (
+            <span className="hidden shrink-0 items-center gap-1 rounded-md bg-secondary px-1.5 py-0.5 text-[10px] text-muted-foreground sm:flex">
+              <Github className="size-3" /> {repo}
+            </span>
+          )}
           {activeContext.pinned && (
             <span className="flex items-center gap-1 rounded-md bg-secondary px-1.5 py-0.5 text-[10px] text-muted-foreground">
               <Pin className="size-3" /> fixado
             </span>
           )}
         </div>
+
 
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <Row label="Extensão" state={syncStatus.extension} value={activeContext.extensionVersion} />
