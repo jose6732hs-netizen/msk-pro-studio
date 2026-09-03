@@ -9,6 +9,38 @@ import {
 } from "./License";
 
 /**
+ * Mantém o mesmo vínculo que a extensão já validou disponível para os adapters
+ * do painel. Não é token GitHub, service-role nem chave de IA: é a própria
+ * licença do usuário, que o backend MSK revalida antes de cada operação.
+ */
+function syncPanelSessionFromLinkedLicense() {
+  if (typeof window === "undefined") return;
+  try {
+    const raw = window.localStorage.getItem("msk.panel.license");
+    if (!raw) return;
+    const parsed = JSON.parse(raw) as { email?: string; key?: string };
+    const key = String(parsed.key ?? "").trim();
+    if (!key) return;
+    const existingRaw = window.localStorage.getItem("msk.panel.session");
+    const existing = existingRaw ? (JSON.parse(existingRaw) as Record<string, unknown>) : {};
+    window.localStorage.setItem(
+      "msk.panel.session",
+      JSON.stringify({
+        ...existing,
+        user_id: existing["user_id"] ?? null,
+        email: String(parsed.email ?? existing["email"] ?? "").trim() || null,
+        name: existing["name"] ?? null,
+        access_token: key,
+        active_project_id: existing["active_project_id"] ?? null,
+        source: "extension",
+      }),
+    );
+  } catch {
+    /* vínculo ausente/inválido: o servidor continuará bloqueando */
+  }
+}
+
+/**
  * Camada única de licença. Nada do editor é renderizado antes da resposta
  * do SERVIDOR — sem flash de conteúdo protegido, sem bloqueio só visual.
  */
@@ -22,6 +54,10 @@ export function LicenseGate({ children }: { children: ReactNode }) {
 
 function Gated({ children }: { children: ReactNode }) {
   const { loading, active, reason, raw, refresh } = useLicense();
+
+  // A extensão injeta msk.panel.license antes de abrir o Editor. Fazemos o
+  // handoff para o provider ANTES de montar o painel, evitando sessão nula.
+  syncPanelSessionFromLinkedLicense();
 
   if (loading) return <LicenseVerifying />;
   if (!active) {
@@ -72,6 +108,7 @@ function AccessForm({ onDone }: { onDone: () => void }) {
           if (parsed.key) {
             setLicense(parsed.key);
             setLinked(parsed.email);
+            syncPanelSessionFromLinkedLicense();
           }
         }
       }
@@ -85,10 +122,12 @@ function AccessForm({ onDone }: { onDone: () => void }) {
     setBusy(true);
     setError(null);
     try {
+      const cleanEmail = email.trim();
+      const cleanLicense = license.trim();
       const res = await fetch("/api/license/activate", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ mode: "license", email: email.trim(), license: license.trim() }),
+        body: JSON.stringify({ mode: "license", email: cleanEmail, license: cleanLicense }),
         cache: "no-store",
       });
       const data = (await res.json()) as { ok?: boolean; code?: string };
@@ -98,8 +137,9 @@ function AccessForm({ onDone }: { onDone: () => void }) {
       }
       window.localStorage.setItem(
         "msk.panel.license",
-        JSON.stringify({ email: email.trim(), key: license.trim() }),
+        JSON.stringify({ email: cleanEmail, key: cleanLicense }),
       );
+      syncPanelSessionFromLinkedLicense();
       onDone();
     } catch {
       setError("Falha de conexão com o servidor MSK.");
@@ -137,7 +177,7 @@ function AccessForm({ onDone }: { onDone: () => void }) {
           Licença MSK
         </span>
         <input
-          type="text"
+          type="password"
           required
           minLength={6}
           maxLength={200}
@@ -149,7 +189,6 @@ function AccessForm({ onDone }: { onDone: () => void }) {
           className={inputClass}
         />
       </label>
-
 
       {error && <p className="text-xs text-destructive">{error}</p>}
 
