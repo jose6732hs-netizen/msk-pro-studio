@@ -69,7 +69,7 @@ export function Chat() {
       />
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/70 via-black/40 to-black/80" aria-hidden />
       <div className="msk-scroll relative flex-1 space-y-3 overflow-y-auto p-3">
-        {messages.length === 0 && !activeRun && (
+        {messages.length === 0 && !activeRun && !sending && (
           <div className="msk-panel p-4 text-xs text-muted-foreground">
             <p className="mb-2 font-medium text-foreground">Peça uma alteração no seu projeto</p>
             <ul className="space-y-1">
