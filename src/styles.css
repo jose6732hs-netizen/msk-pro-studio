@@ -6,7 +6,7 @@
 
 /*
  * MSK AGENTE — design system
- * Preto profundo + verde neon + roxo + azul. Liquid glass leve (sem blur pesado).
+ * Preto profundo + amarelo neon + roxo + azul. Liquid glass leve (sem blur pesado).
  * Todos os valores são tokens semânticos. Nunca usar cores literais em componentes.
  */
 
@@ -74,9 +74,9 @@
   --card-foreground: oklch(1 0 0);
   --popover: oklch(0.11 0 0);
   --popover-foreground: oklch(1 0 0);
-  --primary: oklch(0.87 0.26 143);
+  --primary: oklch(0.87 0.26 85);
   --primary-foreground: oklch(0 0 0);
-  --neon: oklch(0.87 0.26 143);
+  --neon: oklch(0.87 0.26 85);
   --neon-foreground: oklch(0 0 0);
   --violet: oklch(0.62 0.23 300);
   --azure: oklch(0.68 0.16 245);
@@ -84,29 +84,29 @@
   --secondary-foreground: oklch(1 0 0);
   --muted: oklch(0.17 0 0);
   --muted-foreground: oklch(0.72 0 0);
-  --accent: oklch(0.87 0.26 143);
+  --accent: oklch(0.87 0.26 85);
   --accent-foreground: oklch(0 0 0);
   --destructive: oklch(0.62 0.23 25);
   --destructive-foreground: oklch(0.98 0.005 25);
   --warning: oklch(0.8 0.16 85);
-  --success: oklch(0.78 0.19 150);
+  --success: oklch(0.78 0.19 85);
   --border: oklch(0.26 0 0);
   --glass-border: oklch(1 0 0 / 10%);
   --input: oklch(0.24 0 0);
-  --ring: oklch(0.87 0.26 143 / 55%);
-  --chart-1: oklch(0.87 0.26 143);
+  --ring: oklch(0.87 0.26 85 / 55%);
+  --chart-1: oklch(0.87 0.26 85);
   --chart-2: oklch(0.68 0.16 245);
   --chart-3: oklch(0.62 0.23 300);
   --chart-4: oklch(0.8 0.16 85);
   --chart-5: oklch(0.62 0.23 25);
   --sidebar: oklch(0.06 0 0);
   --sidebar-foreground: oklch(1 0 0);
-  --sidebar-primary: oklch(0.87 0.26 143);
+  --sidebar-primary: oklch(0.87 0.26 85);
   --sidebar-primary-foreground: oklch(0 0 0);
   --sidebar-accent: oklch(0.16 0 0);
   --sidebar-accent-foreground: oklch(1 0 0);
   --sidebar-border: oklch(0.22 0 0);
-  --sidebar-ring: oklch(0.87 0.26 143 / 45%);
+  --sidebar-ring: oklch(0.87 0.26 85 / 45%);
 }
 
 .dark {
@@ -127,8 +127,8 @@
     color: var(--color-foreground);
     font-family: var(--font-sans);
     background-image:
-      radial-gradient(60rem 34rem at 12% -12%, oklch(0.87 0.26 143 / 8%), transparent 62%),
-      radial-gradient(52rem 30rem at 96% 0%, oklch(0.87 0.26 143 / 5%), transparent 64%);
+      radial-gradient(60rem 34rem at 12% -12%, oklch(0.87 0.26 85 / 8%), transparent 62%),
+      radial-gradient(52rem 30rem at 96% 0%, oklch(0.87 0.26 85 / 5%), transparent 64%);
     background-attachment: fixed;
   }
 }
@@ -154,11 +154,11 @@
 
 @utility msk-neon-text {
   color: var(--neon);
-  text-shadow: 0 0 14px oklch(0.87 0.26 143 / 35%);
+  text-shadow: 0 0 14px oklch(0.87 0.26 85 / 35%);
 }
 
 @utility msk-neon-ring {
-  box-shadow: 0 0 0 1px oklch(0.87 0.26 143 / 45%), 0 0 22px oklch(0.87 0.26 143 / 18%);
+  box-shadow: 0 0 0 1px oklch(0.87 0.26 85 / 45%), 0 0 22px oklch(0.87 0.26 85 / 18%);
 }
 
 @utility msk-scroll {
