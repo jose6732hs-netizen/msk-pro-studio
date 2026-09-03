@@ -43,7 +43,7 @@ export function TopBar({ onPublish }: { onPublish: () => void }) {
           alt="MSK Agente"
           className="msk-neon-ring size-9 rounded-full bg-background object-contain"
         />
-        <div />
+        
         <div className="leading-tight">
           <p className="text-sm font-semibold tracking-tight">MSK AGENTE</p>
           <p className="hidden text-[10px] uppercase tracking-[0.18em] text-muted-foreground sm:block">
