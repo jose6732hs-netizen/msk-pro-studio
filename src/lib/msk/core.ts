@@ -293,6 +293,70 @@ export function readHandoff(): Partial<MskSession> | null {
   };
 }
 
+/**
+ * O popup também envia o projeto/repositório ativo e o histórico de repositórios:
+ * ?repo=owner/name&branch=main&pname=Nome&purl=...&preview=...&projects=<base64(JSON[])>
+ * Os parâmetros são removidos da URL depois de lidos.
+ */
+export function readHandoffProjects(): MskProject[] {
+  if (typeof window === "undefined") return [];
+  const url = new URL(window.location.href);
+  const keys = ["repo", "branch", "pname", "purl", "preview", "pid", "projects"];
+  if (!keys.some((k) => url.searchParams.has(k))) return [];
+
+  const list: MskProject[] = [];
+  const raw = url.searchParams.get("projects");
+  if (raw) {
+    try {
+      const decoded = JSON.parse(
+        decodeURIComponent(escape(atob(raw.replace(/-/g, "+").replace(/_/g, "/")))),
+      ) as Array<Record<string, string | null>>;
+      for (const p of decoded) {
+        if (!p || typeof p !== "object") continue;
+        list.push(normalizeHandoffProject(p));
+      }
+    } catch {
+      /* payload inválido: ignorado, sem sucesso falso */
+    }
+  }
+
+  const repo = url.searchParams.get("repo");
+  const pid = url.searchParams.get("pid") ?? url.searchParams.get("project");
+  if (repo || pid) {
+    list.push(
+      normalizeHandoffProject({
+        id: pid,
+        lovable_project_id: pid,
+        name: url.searchParams.get("pname") ?? repo ?? pid,
+        repository: repo,
+        branch: url.searchParams.get("branch"),
+        lovable_url: url.searchParams.get("purl"),
+        preview_url: url.searchParams.get("preview"),
+      }),
+    );
+  }
+
+  for (const k of keys) url.searchParams.delete(k);
+  window.history.replaceState({}, "", url.toString());
+  return list;
+}
+
+function normalizeHandoffProject(p: Record<string, unknown>): MskProject {
+  const str = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null);
+  const id = str(p["id"]) ?? str(p["lovable_project_id"]) ?? uid();
+  return {
+    id,
+    lovable_project_id: str(p["lovable_project_id"]) ?? str(p["id"]),
+    name: str(p["name"]) ?? str(p["repository"]) ?? "Projeto sem nome",
+    lovable_url: str(p["lovable_url"]),
+    preview_url: str(p["preview_url"]),
+    production_url: str(p["production_url"]),
+    repository: str(p["repository"]),
+    branch: str(p["branch"]) ?? "main",
+    updated_at: str(p["updated_at"]) ?? new Date().toISOString(),
+  };
+}
+
 export const emptySession: MskSession = {
   user_id: null,
   email: null,
