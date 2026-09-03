@@ -18,9 +18,9 @@ import { PreviewService } from "@/lib/msk/services";
 import type { Device } from "@/lib/msk/core";
 
 const DEVICES: { key: Device; label: string; Icon: typeof Laptop }[] = [
-  { key: "desktop", label: "MacBook", Icon: Laptop },
+  { key: "desktop", label: "Desktop", Icon: Laptop },
   { key: "tablet", label: "Tablet", Icon: Tablet },
-  { key: "mobile", label: "iPhone 17", Icon: Smartphone },
+  { key: "mobile", label: "Mobile", Icon: Smartphone },
 ];
 
 export function PreviewSettingsPanel() {
