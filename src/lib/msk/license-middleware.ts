@@ -19,21 +19,35 @@ export class LicenseDeniedError extends Error {
   }
 }
 
-function clientToken(): string | null {
-  if (typeof window === "undefined") return null;
+function clientCredentials(): Record<string, string> {
+  if (typeof window === "undefined") return {};
+  const headers: Record<string, string> = {};
   try {
     const raw = window.localStorage.getItem("msk.panel.session");
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as { access_token?: string | null };
-    return parsed.access_token ?? null;
+    const token = raw ? (JSON.parse(raw) as { access_token?: string | null }).access_token : null;
+    if (token) headers["Authorization"] = `Bearer ${token}`;
   } catch {
-    return null;
+    /* sessão inválida: segue sem token */
   }
+  try {
+    // Vínculo automático com a licença já validada no popup da extensão.
+    const raw = window.localStorage.getItem("msk.panel.license");
+    if (raw) {
+      const parsed = JSON.parse(raw) as { email?: string; key?: string };
+      if (parsed.email && parsed.key) {
+        headers["x-msk-email"] = parsed.email;
+        headers["x-msk-license"] = parsed.key;
+      }
+    }
+  } catch {
+    /* licença inválida: segue sem vínculo */
+  }
+  return headers;
 }
 
 export const attachMskAuth = createMiddleware({ type: "function" }).client(async ({ next }) => {
-  const token = clientToken();
-  return token ? next({ headers: { Authorization: `Bearer ${token}` } }) : next();
+  const headers = clientCredentials();
+  return Object.keys(headers).length ? next({ headers }) : next();
 });
 
 export const requireActiveLicense = createMiddleware({ type: "function" }).server(
