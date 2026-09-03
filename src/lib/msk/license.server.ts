@@ -119,6 +119,11 @@ export async function getActiveLicenseForUser(
   const row = rows[0];
   if (!row) return { active: false, reason: "LICENSE_NOT_FOUND", serverNow };
 
+  return decideLicense(row, serverNow);
+}
+
+/** Decide ativo/inativo a partir da linha da licença, sempre com o relógio do servidor. */
+function decideLicense(row: LicenseRow, serverNow: string): LicenseResult {
   const planName = row.plan_name ?? row.plan ?? "MSK Agente";
   const expiresAt = row.expires_at ?? null;
   const statusReason = reasonForStatus(row.status ?? "");
@@ -129,7 +134,6 @@ export async function getActiveLicenseForUser(
     return { active: false, reason: "LICENSE_EXPIRED", planName, expiresAt, serverNow };
   }
 
-  // Relógio do SERVIDOR — o horário do cliente é irrelevante aqui.
   const now = Date.parse(serverNow);
   const end = Date.parse(expiresAt);
   if (!Number.isFinite(end) || end <= now) {
