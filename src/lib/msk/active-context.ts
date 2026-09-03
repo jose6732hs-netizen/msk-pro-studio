@@ -217,7 +217,14 @@ export function resolvePreview(
   if (project?.preview_url) return { url: project.preview_url, provider: "msk", reason: "ok" };
   // 3. preview/deploy vindo do contexto sem provider declarado
   if (ctx.previewUrl) return { url: ctx.previewUrl, provider: "deployment", reason: "ok" };
-  // 4. preview Lovable válido
+  // 4. preview Lovable derivado do ID do projeto identificado pela extensão
+  const lovableId = project?.lovable_project_id ?? ctx.lovableProjectId;
+  if (lovableId && /^[0-9a-f-]{36}$/i.test(lovableId))
+    return {
+      url: `https://id-preview--${lovableId}.lovable.app`,
+      provider: "lovable",
+      reason: "ok",
+    };
   if (ctx.lovableUrl && /^https:\/\//.test(ctx.lovableUrl))
     return { url: null, provider: "lovable", reason: "unavailable" };
   // 5. produção
