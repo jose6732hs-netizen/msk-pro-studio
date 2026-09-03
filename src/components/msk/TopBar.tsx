@@ -14,6 +14,8 @@ import mskLogo from "@/assets/msk-logo.png.asset.json";
 import { useMsk } from "@/lib/msk/provider";
 import { GitHubService } from "@/lib/msk/services";
 import { NotificationsPopover } from "./Overlays";
+import { LicenseCountdown } from "./License";
+import { useLicense } from "@/lib/msk/license-context";
 import type { Device } from "@/lib/msk/core";
 
 const DEVICES: { key: Device; label: string; Icon: typeof Monitor }[] = [
@@ -32,7 +34,19 @@ export function TopBar({ onPublish }: { onPublish: () => void }) {
     reloadPreview,
     notifications,
   } = useMsk();
+  const { ensureActive } = useLicense();
   const [bellOpen, setBellOpen] = useState(false);
+  const [publishing, setPublishing] = useState(false);
+
+  // Operação sensível: revalida a licença no SERVIDOR antes de publicar.
+  async function handlePublish() {
+    setPublishing(true);
+    try {
+      if (await ensureActive()) onPublish();
+    } finally {
+      setPublishing(false);
+    }
+  }
   const unread = notifications.filter((n) => !n.read).length;
 
   return (
@@ -113,6 +127,8 @@ export function TopBar({ onPublish }: { onPublish: () => void }) {
         </span>
       </a>
 
+      <LicenseCountdown />
+
       <div className="relative">
         <button
           type="button"
@@ -132,11 +148,11 @@ export function TopBar({ onPublish }: { onPublish: () => void }) {
 
       <button
         type="button"
-        onClick={onPublish}
+        onClick={() => void handlePublish()}
         className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
-        disabled={!activeProject}
+        disabled={!activeProject || publishing}
       >
-        <Rocket className="size-3.5" />
+        {publishing ? <Loader2 className="size-3.5 animate-spin" /> : <Rocket className="size-3.5" />}
         Publicar
       </button>
     </header>
