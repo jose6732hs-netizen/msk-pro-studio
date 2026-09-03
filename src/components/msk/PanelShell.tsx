@@ -1,18 +1,25 @@
 import { useCallback, useEffect, useState } from "react";
 import {
+  Check,
   FolderGit2,
   History,
   Link2,
+  Loader2,
+  Menu,
   MessageSquare,
   MonitorSmartphone,
   PanelLeftOpen,
   PanelRightOpen,
   Paperclip,
+  Rocket,
+  Share2,
   ShieldCheck,
   GraduationCap,
+  X,
 } from "lucide-react";
 
 import { MskProvider, useMsk } from "@/lib/msk/provider";
+import { useLicense } from "@/lib/msk/license-context";
 import { TopBar } from "./TopBar";
 import { ContextBar } from "./ContextBar";
 import { Preview } from "./Preview";
