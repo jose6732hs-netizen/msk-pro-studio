@@ -97,6 +97,44 @@ function PanelInner() {
       setPublishingNow(false);
     }
   }
+  // Baixar projeto — mesma função do botão da extensão (zipball do repositório).
+  const [downloading, setDownloading] = useState(false);
+  const repoFull =
+    activeProject?.repository ??
+    (activeContext.githubOwner && activeContext.githubRepo
+      ? `${activeContext.githubOwner}/${activeContext.githubRepo}`
+      : null);
+  const branch = activeProject?.branch ?? activeContext.branch ?? "main";
+
+  async function handleDownload() {
+    if (!repoFull || downloading) return;
+    if (!(await ensureActive())) return;
+    setDownloading(true);
+    const done = () => setDownloading(false);
+    const off = MskEventBus.on(MSK_EVENTS.PROJECT_DOWNLOAD_STATUS, (p) => {
+      if (p["state"] !== "running") {
+        off();
+        done();
+      }
+    });
+    if (extensionInstalled) {
+      // A extensão usa o token oficial do GitHub (funciona com repositórios privados).
+      sendToExtension(MSK_EVENTS.PANEL_DOWNLOAD_PROJECT, { repository: repoFull, branch });
+      window.setTimeout(() => {
+        off();
+        done();
+      }, 20000);
+      return;
+    }
+    // Sem extensão: baixa o zip público do GitHub.
+    off();
+    const a = document.createElement("a");
+    a.href = `https://codeload.github.com/${repoFull}/zip/refs/heads/${branch}`;
+    a.download = `${repoFull.split("/")[1] ?? "projeto"}.zip`;
+    a.click();
+    done();
+  }
+
   const [collapsed, setCollapsed] = useState(false);
   const [width, setWidth] = useState(380);
 
