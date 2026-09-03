@@ -104,7 +104,7 @@ export function Preview() {
             <iframe
               key={`${previewKey}-${activeProject?.id ?? "ctx"}-${url}`}
               src={PreviewService.bust(url)}
-              title={`Preview de ${activeProject.name}`}
+              title={`Preview de ${activeProject?.name ?? activeContext.lovableProjectName ?? "projeto ativo"}`}
               className="size-full border-0 bg-white"
               sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
             />
