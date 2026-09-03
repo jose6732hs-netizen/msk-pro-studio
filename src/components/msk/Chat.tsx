@@ -11,6 +11,7 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import chatBgAsset from "@/assets/msk-chat-bg.png.asset.json";
 import { useLicense } from "@/lib/msk/license-context";
 import { useMsk } from "@/lib/msk/provider";
 import { AttachmentService } from "@/lib/msk/services";
@@ -60,8 +61,14 @@ export function Chat() {
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <div className="msk-scroll flex-1 space-y-3 overflow-y-auto p-3">
+    <div className="relative flex min-h-0 flex-1 flex-col">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 bg-cover bg-center opacity-25"
+        style={{ backgroundImage: `url(${chatBgAsset.url})` }}
+      />
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/70 via-black/40 to-black/80" aria-hidden />
+      <div className="msk-scroll relative flex-1 space-y-3 overflow-y-auto p-3">
         {messages.length === 0 && !activeRun && (
           <div className="msk-panel p-4 text-xs text-muted-foreground">
             <p className="mb-2 font-medium text-foreground">Peça uma alteração no seu projeto</p>
