@@ -1,3 +1,4 @@
+import { useCallback, useState } from "react";
 import {
   Boxes,
   ExternalLink,
@@ -9,9 +10,11 @@ import {
   Pin,
   RefreshCw,
   Sparkles,
+  X,
 } from "lucide-react";
 import { useMsk } from "@/lib/msk/provider";
 import { githubUrlFor, lovableUrlFor, type SyncState } from "@/lib/msk/active-context";
+
 
 const TONE: Record<SyncState, string> = {
   ready: "bg-primary",
