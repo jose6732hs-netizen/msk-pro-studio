@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as EditorRouteImport } from './routes/editor'
 import { Route as PainelProfissionalRouteImport } from './routes/painel-profissional'
 import { Route as ApiEditorSplatRouteImport } from './routes/api/editor/$'
+import { Route as ApiLicenseActivateRouteImport } from './routes/api/license/activate'
 import { Route as ApiLicenseStatusRouteImport } from './routes/api/license/status'
 
 const IndexRoute = IndexRouteImport.update({
@@ -35,6 +36,11 @@ const ApiEditorSplatRoute = ApiEditorSplatRouteImport.update({
   path: '/api/editor/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiLicenseActivateRoute = ApiLicenseActivateRouteImport.update({
+  id: '/api/license/activate',
+  path: '/api/license/activate',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiLicenseStatusRoute = ApiLicenseStatusRouteImport.update({
   id: '/api/license/status',
   path: '/api/license/status',
@@ -46,6 +52,7 @@ export interface FileRoutesByFullPath {
   '/editor': typeof EditorRoute
   '/painel-profissional': typeof PainelProfissionalRoute
   '/api/editor/$': typeof ApiEditorSplatRoute
+  '/api/license/activate': typeof ApiLicenseActivateRoute
   '/api/license/status': typeof ApiLicenseStatusRoute
 }
 export interface FileRoutesByTo {
@@ -53,6 +60,7 @@ export interface FileRoutesByTo {
   '/editor': typeof EditorRoute
   '/painel-profissional': typeof PainelProfissionalRoute
   '/api/editor/$': typeof ApiEditorSplatRoute
+  '/api/license/activate': typeof ApiLicenseActivateRoute
   '/api/license/status': typeof ApiLicenseStatusRoute
 }
 export interface FileRoutesById {
@@ -61,6 +69,7 @@ export interface FileRoutesById {
   '/editor': typeof EditorRoute
   '/painel-profissional': typeof PainelProfissionalRoute
   '/api/editor/$': typeof ApiEditorSplatRoute
+  '/api/license/activate': typeof ApiLicenseActivateRoute
   '/api/license/status': typeof ApiLicenseStatusRoute
 }
 export interface FileRouteTypes {
@@ -70,6 +79,7 @@ export interface FileRouteTypes {
     | '/editor'
     | '/painel-profissional'
     | '/api/editor/$'
+    | '/api/license/activate'
     | '/api/license/status'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -77,6 +87,7 @@ export interface FileRouteTypes {
     | '/editor'
     | '/painel-profissional'
     | '/api/editor/$'
+    | '/api/license/activate'
     | '/api/license/status'
   id:
     | '__root__'
@@ -84,6 +95,7 @@ export interface FileRouteTypes {
     | '/editor'
     | '/painel-profissional'
     | '/api/editor/$'
+    | '/api/license/activate'
     | '/api/license/status'
   fileRoutesById: FileRoutesById
 }
@@ -92,6 +104,7 @@ export interface RootRouteChildren {
   EditorRoute: typeof EditorRoute
   PainelProfissionalRoute: typeof PainelProfissionalRoute
   ApiEditorSplatRoute: typeof ApiEditorSplatRoute
+  ApiLicenseActivateRoute: typeof ApiLicenseActivateRoute
   ApiLicenseStatusRoute: typeof ApiLicenseStatusRoute
 }
 
@@ -125,6 +138,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiEditorSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/license/activate': {
+      id: '/api/license/activate'
+      path: '/api/license/activate'
+      fullPath: '/api/license/activate'
+      preLoaderRoute: typeof ApiLicenseActivateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/license/status': {
       id: '/api/license/status'
       path: '/api/license/status'
@@ -140,6 +160,7 @@ const rootRouteChildren: RootRouteChildren = {
   EditorRoute: EditorRoute,
   PainelProfissionalRoute: PainelProfissionalRoute,
   ApiEditorSplatRoute: ApiEditorSplatRoute,
+  ApiLicenseActivateRoute: ApiLicenseActivateRoute,
   ApiLicenseStatusRoute: ApiLicenseStatusRoute,
 }
 export const routeTree = rootRouteImport

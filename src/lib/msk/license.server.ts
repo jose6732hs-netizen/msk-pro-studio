@@ -119,6 +119,11 @@ export async function getActiveLicenseForUser(
   const row = rows[0];
   if (!row) return { active: false, reason: "LICENSE_NOT_FOUND", serverNow };
 
+  return decideLicense(row, serverNow);
+}
+
+/** Decide ativo/inativo a partir da linha da licença, sempre com o relógio do servidor. */
+function decideLicense(row: LicenseRow, serverNow: string): LicenseResult {
   const planName = row.plan_name ?? row.plan ?? "MSK Agente";
   const expiresAt = row.expires_at ?? null;
   const statusReason = reasonForStatus(row.status ?? "");
@@ -129,7 +134,6 @@ export async function getActiveLicenseForUser(
     return { active: false, reason: "LICENSE_EXPIRED", planName, expiresAt, serverNow };
   }
 
-  // Relógio do SERVIDOR — o horário do cliente é irrelevante aqui.
   const now = Date.parse(serverNow);
   const end = Date.parse(expiresAt);
   if (!Number.isFinite(end) || end <= now) {
@@ -148,12 +152,76 @@ export async function getActiveLicenseForUser(
   };
 }
 
-/** Verificação completa a partir de uma Request HTTP: sessão + licença. */
+/**
+ * Licença validada por CHAVE + E-MAIL (mesmo par usado no popup da extensão).
+ * A chave nunca é devolvida ao frontend; só o resultado seguro.
+ */
+export async function getLicenseByKey(email: string, key: string): Promise<LicenseResult> {
+  const { url, anonKey, serviceKey, configured } = backend();
+  const serverNow = new Date().toISOString();
+  if (!configured) return { active: false, reason: "BACKEND_NOT_CONFIGURED", serverNow };
+  const mail = email.trim().toLowerCase();
+  const licenseKey = key.trim();
+  if (!mail || !licenseKey) return { active: false, reason: "UNAUTHENTICATED", serverNow };
+
+  const apiKey = serviceKey || anonKey;
+  const columns = ["token", "license_key", "key", "code"];
+  let row: LicenseRow | undefined;
+  for (const column of columns) {
+    const query =
+      `select=*&email=eq.${encodeURIComponent(mail)}` +
+      `&${column}=eq.${encodeURIComponent(licenseKey)}&order=expires_at.desc&limit=1`;
+    const res = await fetch(`${url}/rest/v1/licenses?${query}`, {
+      headers: { apikey: apiKey, Authorization: `Bearer ${apiKey}` },
+    });
+    if (!res.ok) continue; // coluna inexistente neste schema: tenta a próxima
+    const rows = (await res.json()) as LicenseRow[];
+    if (rows[0]) {
+      row = rows[0];
+      break;
+    }
+  }
+  if (!row) return { active: false, reason: "LICENSE_NOT_FOUND", serverNow };
+  return decideLicense(row, serverNow);
+}
+
+/** Faz login por e-mail e senha no backend MSK e devolve o token de sessão do próprio usuário. */
+export async function signInWithPassword(
+  email: string,
+  password: string,
+): Promise<{ ok: true; accessToken: string; email: string | null } | { ok: false; code: string }> {
+  const { url, anonKey, configured } = backend();
+  if (!configured) return { ok: false, code: "BACKEND_NOT_CONFIGURED" };
+  const res = await fetch(`${url}/auth/v1/token?grant_type=password`, {
+    method: "POST",
+    headers: { apikey: anonKey, "content-type": "application/json" },
+    body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
+  });
+  if (!res.ok) return { ok: false, code: "INVALID_CREDENTIALS" };
+  const data = (await res.json()) as {
+    access_token?: string;
+    user?: { email?: string | null } | null;
+  };
+  if (!data.access_token) return { ok: false, code: "INVALID_CREDENTIALS" };
+  return { ok: true, accessToken: data.access_token, email: data.user?.email ?? null };
+}
+
+/**
+ * Verificação completa a partir de uma Request HTTP.
+ * Aceita duas credenciais, ambas validadas no servidor:
+ *  1. Authorization: Bearer <token de sessão>  (login por e-mail e senha)
+ *  2. x-msk-email + x-msk-license              (mesma licença já validada no popup)
+ */
 export async function licenseFromRequest(request: Request): Promise<LicenseResult> {
   const token = bearerFrom(request);
   const user = await verifySessionToken(token);
-  if (!user) return { active: false, reason: "UNAUTHENTICATED", serverNow: new Date().toISOString() };
-  return getActiveLicenseForUser(user.userId, token);
+  if (user) return getActiveLicenseForUser(user.userId, token);
+
+  const email = request.headers.get("x-msk-email");
+  const key = request.headers.get("x-msk-license");
+  if (email && key) return getLicenseByKey(email, key);
+
+  return { active: false, reason: "UNAUTHENTICATED", serverNow: new Date().toISOString() };
 }
 
 export function httpStatusFor(reason: LicenseReason): number {
