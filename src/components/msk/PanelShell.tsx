@@ -55,6 +55,34 @@ function PanelInner() {
   const [tab, setTab] = useState<TabKey>("chat");
   const [dragging, setDragging] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
+  const [width, setWidth] = useState(420);
+
+  useEffect(() => {
+    const saved = Number(window.localStorage.getItem("msk.panel.chatWidth"));
+    if (Number.isFinite(saved) && saved >= 320) setWidth(Math.min(saved, 900));
+    setCollapsed(window.localStorage.getItem("msk.panel.chatCollapsed") === "1");
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem("msk.panel.chatWidth", String(width));
+    window.localStorage.setItem("msk.panel.chatCollapsed", collapsed ? "1" : "0");
+  }, [width, collapsed]);
+
+  const startResize = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    const onMove = (e: PointerEvent) => {
+      const next = window.innerWidth - e.clientX;
+      setWidth(Math.min(Math.max(next, 320), Math.min(900, window.innerWidth - 360)));
+    };
+    const onUp = () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  }, []);
+
 
   const onDrop = useCallback(
     (event: Event) => {
