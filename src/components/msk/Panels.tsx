@@ -150,6 +150,15 @@ function NewProjectForm({
 
   if (!open) {
     return (
+      <>
+      {denied && (
+        <p className="mb-2 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-[11px] text-destructive">
+          Sua licença expirou.{" "}
+          <a href="https://msksystem.online/planos?renovar=1" className="underline underline-offset-4">
+            RENOVAR
+          </a>
+        </p>
+      )}
       <button
         type="button"
         onClick={async () => {
@@ -165,6 +174,7 @@ function NewProjectForm({
       >
         <Plus className="size-3.5" /> Novo projeto
       </button>
+      </>
     );
   }
 

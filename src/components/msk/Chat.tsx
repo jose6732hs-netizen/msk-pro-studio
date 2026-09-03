@@ -121,6 +121,15 @@ export function Chat() {
         <div ref={endRef} />
       </div>
 
+      {blocked && (
+        <p className="border-t border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+          Sua licença expirou. Nenhuma nova execução foi iniciada.{" "}
+          <a href="https://msksystem.online/planos?renovar=1" className="underline underline-offset-4">
+            RENOVAR
+          </a>
+        </p>
+      )}
+
       {attachments.length > 0 && (
         <ul className="flex flex-wrap gap-1.5 border-t border-border px-3 py-2">
           {attachments.map((a) => (
