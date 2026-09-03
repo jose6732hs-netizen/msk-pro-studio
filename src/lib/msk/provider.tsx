@@ -157,7 +157,11 @@ export function MskProvider({ children }: { children: ReactNode }) {
         return prev;
       });
     });
+    return () => {
+      off();
+    };
   }, []);
+
 
 
   /* ---- Carga inicial ---- */
