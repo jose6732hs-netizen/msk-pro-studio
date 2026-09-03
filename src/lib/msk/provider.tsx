@@ -279,6 +279,116 @@ export function MskProvider({ children }: { children: ReactNode }) {
         ]);
       }),
 
+      // Execução real do agente (extensão → painel): progresso, conclusão e falha.
+      MskEventBus.on(MSK_EVENTS.RUN_UPDATED, (payload) => {
+        const runId = (payload["runId"] as string) ?? null;
+        if (!runId) return;
+        const stepKey = (payload["step"] as string) ?? "ai";
+        const label = (payload["label"] as string) ?? "Processando";
+        const stepStatus = ((payload["status"] as string) ?? "running") as MskRun["steps"][number]["status"];
+        setRuns((prev) =>
+          prev.map((r) => {
+            if (r.id !== runId) return r;
+            const rest = r.steps.filter((s) => s.key !== stepKey);
+            const steps = [
+              ...rest.map((s) =>
+                s.status === "running" ? { ...s, status: "done" as const } : s,
+              ),
+              { key: stepKey, label, status: stepStatus },
+            ];
+            return { ...r, status: "running" as const, steps };
+          }),
+        );
+      }),
+      MskEventBus.on(MSK_EVENTS.RUN_COMPLETED, (payload) => {
+        const runId = (payload["runId"] as string) ?? null;
+        const content = (payload["message"] as string) ?? "Alterações aplicadas com sucesso.";
+        const commits = Array.isArray(payload["commits"])
+          ? (payload["commits"] as Array<Record<string, unknown>>)
+          : [];
+        const files = commits
+          .map((c) => (c["path"] as string) ?? null)
+          .filter((p): p is string => Boolean(p));
+        const commitUrl =
+          (commits[0]?.["url"] as string) ?? (commits[0]?.["html_url"] as string) ?? null;
+        const commitSha =
+          (commits[0]?.["sha"] as string) ?? (payload["commitSha"] as string) ?? null;
+        const repository = (payload["repository"] as string) ?? null;
+        const branch = (payload["branch"] as string) ?? null;
+
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: uid(),
+            project_id: (payload["projectId"] as string) ?? "",
+            role: "agent" as const,
+            content,
+            created_at: new Date().toISOString(),
+            attachments: [],
+          },
+        ]);
+        setRuns((prev) => {
+          const next = prev.map((r) =>
+            r.id === runId
+              ? {
+                  ...r,
+                  status: "done" as const,
+                  summary: content,
+                  files: files.length ? files : (r.files ?? []),
+                  commit_sha: commitSha,
+                  repository: repository ?? r.repository,
+                  branch: branch ?? r.branch,
+                  finished_at: new Date().toISOString(),
+                  steps: r.steps.map((s) =>
+                    s.status === "running" ? { ...s, status: "done" as const } : s,
+                  ),
+                }
+              : r,
+          );
+          const done = next.find((r) => r.id === runId);
+          if (done) AgentService.saveLocalRun(done);
+          return next;
+        });
+        if (commitUrl || commitSha) {
+          setGithub((prev) => ({ ...prev, last_commit: commitUrl ?? commitSha }));
+        }
+        // PREVIEW ATUALIZA: novo commit no GitHub → recarrega o preview do projeto.
+        setPreviewStatus("update-available");
+        setPreviewKey((k) => k + 1);
+      }),
+      MskEventBus.on(MSK_EVENTS.RUN_FAILED, (payload) => {
+        const runId = (payload["runId"] as string) ?? null;
+        const message = (payload["message"] as string) ?? "Falha na execução do agente.";
+        setRuns((prev) => {
+          const next = prev.map((r) =>
+            r.id === runId
+              ? {
+                  ...r,
+                  status: "error" as const,
+                  error: message,
+                  finished_at: new Date().toISOString(),
+                  steps: r.steps.map((s) =>
+                    s.status === "running" ? { ...s, status: "error" as const } : s,
+                  ),
+                }
+              : r,
+          );
+          const failed = next.find((r) => r.id === runId);
+          if (failed) AgentService.saveLocalRun(failed);
+          return next;
+        });
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: uid(),
+            project_id: "",
+            role: "agent" as const,
+            content: `Não consegui concluir: ${message}`,
+            created_at: new Date().toISOString(),
+            attachments: [],
+          },
+        ]);
+      }),
       MskEventBus.on(MSK_EVENTS.EXTENSION_READY, () => {
         setExtensionInstalled(true);
         // pergunta à extensão se o GitHub oficial já está conectado
@@ -505,7 +615,23 @@ export function MskProvider({ children }: { children: ReactNode }) {
 
       // Motor único: com a extensão instalada, quem executa é o MESMO agente do popup.
       if (extensionInstalled) {
+        const run: MskRun = {
+          id: message.id,
+          project_id: activeProject.id,
+          request: message.content,
+          status: "running",
+          steps: [
+            { key: "received", label: "Pedido recebido", status: "done" },
+            { key: "validating", label: "Validando licença, projeto e repositório", status: "running" },
+          ],
+          repository: activeProject.repository,
+          branch: activeProject.branch,
+          created_at: new Date().toISOString(),
+        };
+        setRuns((prev) => [run, ...prev]);
+        AgentService.saveLocalRun(run);
         sendToExtension(MSK_EVENTS.PANEL_CHAT_SEND, {
+          runId: run.id,
           messageId: message.id,
           projectId: activeProject.id,
           lovableProjectId: activeProject.lovable_project_id,
