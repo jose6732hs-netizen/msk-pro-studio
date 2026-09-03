@@ -67,7 +67,14 @@ export function MskPanel() {
 }
 
 function PanelInner() {
-  const { addFiles, backendConfigured, backendError, activeProject } = useMsk();
+  const {
+    addFiles,
+    backendConfigured,
+    backendError,
+    activeProject,
+    activeContext,
+    extensionInstalled,
+  } = useMsk();
   const { ensureActive } = useLicense();
   const [tab, setTab] = useState<TabKey>("chat");
   const [menuOpen, setMenuOpen] = useState(false);
