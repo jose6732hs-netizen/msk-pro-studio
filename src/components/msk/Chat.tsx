@@ -37,19 +37,33 @@ export function Chat() {
   const endRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const recRef = useRef<any>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const [listening, setListening] = useState(false);
   const [voiceError, setVoiceError] = useState<string | null>(null);
 
-  // Transcrição por voz (ditado): o texto cai direto na caixa de comando.
-  function toggleDictation() {
+  const stopStream = () => {
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+  };
+
+  // Transcrição por voz (ditado): o texto cai direto na caixa de comando,
+  // com ondas de áudio reagindo ao volume da voz em tempo real.
+  async function toggleDictation() {
     if (listening) {
       recRef.current?.stop();
+      stopStream();
       return;
     }
     const Ctor =
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!Ctor) {
       setVoiceError("Seu navegador não suporta transcrição por voz.");
+      return;
+    }
+    try {
+      streamRef.current = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch {
+      setVoiceError("É preciso liberar o microfone para transcrever por voz.");
       return;
     }
     const rec = new Ctor();
@@ -75,13 +89,23 @@ export function Chat() {
     rec.onerror = () => {
       setVoiceError("Não foi possível capturar o áudio. Verifique o microfone.");
       setListening(false);
+      stopStream();
     };
-    rec.onend = () => setListening(false);
+    rec.onend = () => {
+      setListening(false);
+      stopStream();
+    };
     recRef.current = rec;
     rec.start();
   }
 
-  useEffect(() => () => recRef.current?.stop?.(), []);
+  useEffect(
+    () => () => {
+      recRef.current?.stop?.();
+      streamRef.current?.getTracks().forEach((t) => t.stop());
+    },
+    [],
+  );
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -262,11 +286,16 @@ export function Chat() {
             {sending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
           </button>
         </div>
-        {listening && (
-          <p className="mt-2 flex items-center gap-1.5 text-[11px] text-destructive">
-            <span className="size-1.5 animate-pulse rounded-full bg-destructive" />
-            Gravando… fale o comando e clique em parar para revisar antes de enviar.
-          </p>
+        {listening && streamRef.current && (
+          <div className="mt-2 overflow-hidden rounded-xl border border-destructive/40 bg-destructive/5">
+            <div className="flex items-center gap-2 px-3 pt-2">
+              <span className="size-1.5 animate-pulse rounded-full bg-destructive" />
+              <span className="text-[11px] font-medium text-destructive">
+                Ouvindo… o texto aparece na caixa acima enquanto você fala
+              </span>
+            </div>
+            <VoiceWave stream={streamRef.current} />
+          </div>
         )}
         {voiceError && <p className="mt-2 text-[11px] text-destructive">{voiceError}</p>}
         {!activeProject && (
@@ -277,6 +306,58 @@ export function Chat() {
       </div>
     </div>
   );
+}
+
+function VoiceWave({ stream }: { stream: MediaStream }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const ctx = new AudioContext();
+    const source = ctx.createMediaStreamSource(stream);
+    const analyser = ctx.createAnalyser();
+    analyser.fftSize = 128;
+    analyser.smoothingTimeConstant = 0.75;
+    source.connect(analyser);
+    const data = new Uint8Array(analyser.frequencyBinCount);
+    let raf = 0;
+
+    const draw = () => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const g = canvas.getContext("2d");
+      if (!g) return;
+      const { width, height } = canvas;
+      analyser.getByteFrequencyData(data);
+      g.clearRect(0, 0, width, height);
+      const bars = 48;
+      const gap = 3;
+      const barW = (width - gap * (bars - 1)) / bars;
+      for (let i = 0; i < bars; i += 1) {
+        const v = (data[Math.floor((i / bars) * data.length)] ?? 0) / 255;
+        const h = Math.max(3, v * (height - 4));
+        const x = i * (barW + gap);
+        const y = (height - h) / 2;
+        const grad = g.createLinearGradient(0, y, 0, y + h);
+        grad.addColorStop(0, "#4ade80");
+        grad.addColorStop(1, "#16a34a");
+        g.fillStyle = grad;
+        g.beginPath();
+        g.roundRect(x, y, barW, h, barW / 2);
+        g.fill();
+      }
+      raf = requestAnimationFrame(draw);
+    };
+    raf = requestAnimationFrame(draw);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      source.disconnect();
+      analyser.disconnect();
+      void ctx.close();
+    };
+  }, [stream]);
+
+  return <canvas ref={canvasRef} width={560} height={56} className="block h-14 w-full" aria-hidden />;
 }
 
 function labelForStatus(status: string) {
