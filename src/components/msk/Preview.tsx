@@ -307,16 +307,7 @@ export function Preview() {
             }
           />
         ) : (
-          <div
-            className="msk-panel h-full w-full overflow-hidden bg-surface shadow-lg"
-            style={{
-              width: width ? `${width}px` : "100%",
-              maxWidth: "100%",
-              height: "100%",
-              transform: `scale(${zoom})`,
-              transformOrigin: "top center",
-            }}
-          >
+          <DeviceMockup device={device} width={width} zoom={zoom}>
             <iframe
               key={`${previewKey}-${activeProject?.id ?? "ctx"}-${url}`}
               src={PreviewService.bust(fullUrl ?? url)}
@@ -324,7 +315,7 @@ export function Preview() {
               className="size-full border-0 bg-white"
               sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
             />
-          </div>
+          </DeviceMockup>
         )}
       </div>
     </section>
@@ -401,4 +392,74 @@ function joinPath(base: string, path: string): string {
   } catch {
     return base;
   }
+}
+
+function DeviceMockup({
+  device,
+  width,
+  zoom,
+  children,
+}: {
+  device: "desktop" | "tablet" | "mobile";
+  width: number | null;
+  zoom: number;
+  children: React.ReactNode;
+}) {
+  const scale = { transform: `scale(${zoom})`, transformOrigin: "top center" } as const;
+
+  if (device === "mobile") {
+    return (
+      <div style={scale} className="flex h-full items-start justify-center py-2">
+        <div className="relative h-full" style={{ width: `${(width ?? 390) + 22}px`, maxWidth: "100%" }}>
+          {/* botões laterais */}
+          <span className="absolute -left-[3px] top-[110px] h-8 w-[3px] rounded-l bg-neutral-700" />
+          <span className="absolute -left-[3px] top-[160px] h-14 w-[3px] rounded-l bg-neutral-700" />
+          <span className="absolute -right-[3px] top-[150px] h-20 w-[3px] rounded-r bg-neutral-700" />
+          <div className="h-full rounded-[46px] bg-neutral-900 p-[11px] shadow-[0_30px_80px_-20px_rgba(0,0,0,0.9)] ring-1 ring-white/10">
+            <div className="relative h-full overflow-hidden rounded-[36px] bg-black">
+              {/* dynamic island */}
+              <div className="pointer-events-none absolute left-1/2 top-2 z-10 h-[26px] w-[104px] -translate-x-1/2 rounded-full bg-black">
+                <span className="absolute right-3 top-1/2 size-[9px] -translate-y-1/2 rounded-full bg-neutral-800 ring-1 ring-neutral-700" />
+              </div>
+              <div className="size-full overflow-hidden rounded-[36px]">{children}</div>
+              <div className="pointer-events-none absolute bottom-1.5 left-1/2 h-[4px] w-28 -translate-x-1/2 rounded-full bg-white/70" />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (device === "tablet") {
+    return (
+      <div style={scale} className="flex h-full items-start justify-center py-2">
+        <div
+          className="h-full rounded-[28px] bg-neutral-900 p-[14px] shadow-[0_30px_80px_-20px_rgba(0,0,0,0.9)] ring-1 ring-white/10"
+          style={{ width: `${(width ?? 768) + 28}px`, maxWidth: "100%" }}
+        >
+          <div className="relative size-full overflow-hidden rounded-[16px] bg-black">
+            <span className="absolute left-1/2 top-[5px] z-10 size-[6px] -translate-x-1/2 rounded-full bg-neutral-700" />
+            <div className="size-full">{children}</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // MacBook
+  return (
+    <div style={scale} className="flex h-full w-full flex-col items-center justify-start">
+      <div className="w-full max-w-[1280px] flex-1 rounded-t-[18px] bg-neutral-900 px-[12px] pb-[10px] pt-[22px] shadow-[0_30px_80px_-24px_rgba(0,0,0,0.9)] ring-1 ring-white/10">
+        <span className="pointer-events-none absolute" />
+        <div className="relative -mt-[16px] mb-[6px] flex h-[14px] items-center justify-center">
+          <span className="size-[5px] rounded-full bg-neutral-700 ring-1 ring-neutral-600" />
+        </div>
+        <div className="h-[calc(100%-4px)] overflow-hidden rounded-[6px] bg-black">{children}</div>
+      </div>
+      <div className="relative w-full max-w-[1400px]">
+        <div className="mx-auto h-[12px] w-full rounded-b-[10px] bg-gradient-to-b from-neutral-700 to-neutral-900 ring-1 ring-white/10" />
+        <div className="mx-auto h-[5px] w-[16%] rounded-b-[8px] bg-neutral-800" />
+      </div>
+    </div>
+  );
 }
