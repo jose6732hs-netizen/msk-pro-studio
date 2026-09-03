@@ -4,6 +4,7 @@ import {
   History,
   Link2,
   MessageSquare,
+  MonitorSmartphone,
   PanelLeftOpen,
   PanelRightOpen,
   Paperclip,
@@ -15,6 +16,7 @@ import { MskProvider, useMsk } from "@/lib/msk/provider";
 import { TopBar } from "./TopBar";
 import { ContextBar } from "./ContextBar";
 import { Preview } from "./Preview";
+import { PreviewSettingsPanel } from "./PreviewSettings";
 import { Chat } from "./Chat";
 import {
   ConnectionsPanel,
@@ -32,6 +34,7 @@ type TabKey =
   | "projetos"
   | "historico"
   | "arquivos"
+  | "preview"
   | "conexoes"
   | "licenca"
   | "tutoriais";
@@ -41,6 +44,7 @@ const TABS: { key: TabKey; label: string; Icon: typeof MessageSquare }[] = [
   { key: "projetos", label: "Projetos", Icon: FolderGit2 },
   { key: "historico", label: "Histórico", Icon: History },
   { key: "arquivos", label: "Arquivos", Icon: Paperclip },
+  { key: "preview", label: "Preview", Icon: MonitorSmartphone },
   { key: "conexoes", label: "Conexões", Icon: Link2 },
   { key: "licenca", label: "Licença", Icon: ShieldCheck },
   { key: "tutoriais", label: "Tutoriais", Icon: GraduationCap },
@@ -148,7 +152,7 @@ function PanelInner() {
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row">
         <main className="order-1 flex min-h-0 min-w-0 flex-1 flex-col">
           <ContextBar onOpenTab={(t) => setTab(t as TabKey)} />
-          <div className="flex min-h-0 flex-1 flex-col p-2 md:p-3">
+          <div className="flex min-h-0 flex-1 flex-col p-1.5">
             <Preview />
           </div>
         </main>
@@ -280,6 +284,8 @@ function TabContent({ tab }: { tab: TabKey }) {
       return <HistoryPanel />;
     case "arquivos":
       return <FilesPanel />;
+    case "preview":
+      return <PreviewSettingsPanel />;
     case "conexoes":
       return <ConnectionsPanel />;
     case "licenca":
