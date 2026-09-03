@@ -4,10 +4,13 @@ import {
   History,
   Link2,
   MessageSquare,
+  PanelLeftOpen,
+  PanelRightOpen,
   Paperclip,
   ShieldCheck,
   GraduationCap,
 } from "lucide-react";
+
 import { MskProvider, useMsk } from "@/lib/msk/provider";
 import { TopBar } from "./TopBar";
 import { Preview } from "./Preview";
