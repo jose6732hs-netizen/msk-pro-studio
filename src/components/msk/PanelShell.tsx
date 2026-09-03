@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 
 import { MskProvider, useMsk } from "@/lib/msk/provider";
+import { MSK_EVENTS, MskEventBus, sendToExtension } from "@/lib/msk/bridge";
 import { useLicense } from "@/lib/msk/license-context";
 import { TopBar } from "./TopBar";
 import { ContextBar } from "./ContextBar";
