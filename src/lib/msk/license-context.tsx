@@ -204,9 +204,11 @@ export function formatDateTime(iso: string | null | undefined): string {
 export type LicenseTone = "normal" | "warning" | "critical";
 
 export function toneFor(pct: number | null, remaining: number | null): LicenseTone {
-  if (remaining !== null && remaining <= 300) return "critical";
+  if (remaining !== null && remaining <= 3600) return "critical";
   if (pct === null) return "normal";
-  if (pct < 10) return "critical";
-  if (pct < 20) return "warning";
+  // Verde acima da metade, amarelo na metade, vermelho na reta final.
+  if (pct <= 20) return "critical";
+  if (pct <= 50) return "warning";
   return "normal";
 }
+
