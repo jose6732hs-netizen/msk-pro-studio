@@ -549,7 +549,7 @@ export function MskProvider({ children }: { children: ReactNode }) {
       }
       setAttachments([]);
     },
-    [activeProject, attachments, session.access_token],
+    [activeProject, attachments, session.access_token, extensionInstalled, activeContext.conversationId],
   );
 
   const addFiles = useCallback(
