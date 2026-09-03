@@ -300,11 +300,80 @@ export function MskProvider({ children }: { children: ReactNode }) {
     };
   }, [activeProject, session.access_token]);
 
+  /* ---- Resolver projeto MSK a partir do contexto ativo ---- */
+  const resolution = useMemo(
+    () => resolveProject(projects, activeContext),
+    [projects, activeContext],
+  );
+
+  useEffect(() => {
+    if (resolution.status === "resolved" && resolution.match) {
+      if (resolution.match.id !== activeId) {
+        setActiveId(resolution.match.id);
+        saveLocal("active_project_id", resolution.match.id);
+      }
+      setSyncStatus((s) => ({ ...s, project: "ready", message: null }));
+      setContextLoading(false);
+    } else if (resolution.status === "ambiguous") {
+      setSyncStatus((s) => ({
+        ...s,
+        project: "error",
+        message: "Mais de uma configuração encontrada para este projeto.",
+      }));
+      setContextLoading(false);
+    } else if (resolution.status === "unknown") {
+      setSyncStatus((s) => ({ ...s, project: "error", message: "Projeto ainda não registrado no MSK." }));
+      setContextLoading(false);
+    }
+  }, [resolution, activeId, syncNonce]);
+
+  const preview = useMemo(
+    () => resolvePreview(activeProject, activeContext),
+    [activeProject, activeContext],
+  );
+
+  useEffect(() => {
+    setSyncStatus((s) => ({
+      ...s,
+      preview: preview.url ? "ready" : "error",
+      github: activeProject?.repository || activeContext.githubRepo ? "ready" : "idle",
+      ai: activeContext.aiProvider ? "ready" : "idle",
+    }));
+  }, [preview, activeProject, activeContext]);
+
+  const registerContextProject = useCallback(() => {
+    const draft = contextToProject(activeContext);
+    if (!draft) return;
+    const project: MskProject = {
+      id: draft.id ?? uid(),
+      lovable_project_id: draft.lovable_project_id ?? null,
+      name: draft.name,
+      lovable_url: draft.lovable_url ?? null,
+      preview_url: draft.preview_url ?? null,
+      production_url: draft.production_url ?? null,
+      repository: draft.repository ?? null,
+      branch: draft.branch ?? "main",
+      updated_at: new Date().toISOString(),
+    };
+    setProjects(ProjectService.upsertLocal(project));
+    setActiveId(project.id);
+    saveLocal("active_project_id", project.id);
+  }, [activeContext]);
+
+  const dismissContextProject = useCallback(() => setContextDismissed(true), []);
+
+  const retrySync = useCallback(() => {
+    setSyncStatus((s) => ({ ...s, project: "syncing", message: null }));
+    setSyncNonce((n) => n + 1);
+  }, []);
+
   const setActiveProject = useCallback((id: string | null) => {
     setActiveId(id);
     saveLocal("active_project_id", id);
     if (id) void ProjectService.setActive(null, id).catch(() => {});
     busRef.current?.post({ type: "active-project", projectId: id } as never);
+    // Painel → extensão: mantém um único estado ativo.
+    sendToExtension(MSK_EVENTS.PANEL_PROJECT_SELECTED, { projectId: id });
   }, []);
 
   const addLocalProject = useCallback((p: Partial<MskProject> & { name: string }) => {
@@ -441,6 +510,14 @@ export function MskProvider({ children }: { children: ReactNode }) {
     setDevice,
     zoom,
     setZoom,
+    activeContext,
+    syncStatus,
+    resolution,
+    preview,
+    contextLoading,
+    registerContextProject,
+    dismissContextProject,
+    retrySync,
     previewStatus,
     previewKey,
     reloadPreview,
