@@ -15,6 +15,7 @@ import { Route as PainelProfissionalRouteImport } from './routes/painel-profissi
 import { Route as ApiEditorSplatRouteImport } from './routes/api/editor/$'
 import { Route as ApiLicenseActivateRouteImport } from './routes/api/license/activate'
 import { Route as ApiLicenseStatusRouteImport } from './routes/api/license/status'
+import { Route as ApiMskConfigRouteImport } from './routes/api/msk/config'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -46,6 +47,11 @@ const ApiLicenseStatusRoute = ApiLicenseStatusRouteImport.update({
   path: '/api/license/status',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiMskConfigRoute = ApiMskConfigRouteImport.update({
+  id: '/api/msk/config',
+  path: '/api/msk/config',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -54,6 +60,7 @@ export interface FileRoutesByFullPath {
   '/api/editor/$': typeof ApiEditorSplatRoute
   '/api/license/activate': typeof ApiLicenseActivateRoute
   '/api/license/status': typeof ApiLicenseStatusRoute
+  '/api/msk/config': typeof ApiMskConfigRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -62,6 +69,7 @@ export interface FileRoutesByTo {
   '/api/editor/$': typeof ApiEditorSplatRoute
   '/api/license/activate': typeof ApiLicenseActivateRoute
   '/api/license/status': typeof ApiLicenseStatusRoute
+  '/api/msk/config': typeof ApiMskConfigRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -71,6 +79,7 @@ export interface FileRoutesById {
   '/api/editor/$': typeof ApiEditorSplatRoute
   '/api/license/activate': typeof ApiLicenseActivateRoute
   '/api/license/status': typeof ApiLicenseStatusRoute
+  '/api/msk/config': typeof ApiMskConfigRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -81,6 +90,7 @@ export interface FileRouteTypes {
     | '/api/editor/$'
     | '/api/license/activate'
     | '/api/license/status'
+    | '/api/msk/config'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -89,6 +99,7 @@ export interface FileRouteTypes {
     | '/api/editor/$'
     | '/api/license/activate'
     | '/api/license/status'
+    | '/api/msk/config'
   id:
     | '__root__'
     | '/'
@@ -97,6 +108,7 @@ export interface FileRouteTypes {
     | '/api/editor/$'
     | '/api/license/activate'
     | '/api/license/status'
+    | '/api/msk/config'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -106,6 +118,7 @@ export interface RootRouteChildren {
   ApiEditorSplatRoute: typeof ApiEditorSplatRoute
   ApiLicenseActivateRoute: typeof ApiLicenseActivateRoute
   ApiLicenseStatusRoute: typeof ApiLicenseStatusRoute
+  ApiMskConfigRoute: typeof ApiMskConfigRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -152,6 +165,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiLicenseStatusRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/msk/config': {
+      id: '/api/msk/config'
+      path: '/api/msk/config'
+      fullPath: '/api/msk/config'
+      preLoaderRoute: typeof ApiMskConfigRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -162,6 +182,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiEditorSplatRoute: ApiEditorSplatRoute,
   ApiLicenseActivateRoute: ApiLicenseActivateRoute,
   ApiLicenseStatusRoute: ApiLicenseStatusRoute,
+  ApiMskConfigRoute: ApiMskConfigRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

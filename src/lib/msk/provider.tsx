@@ -146,7 +146,9 @@ export function MskProvider({ children }: { children: ReactNode }) {
     (async () => {
       setLoading(true);
       try {
+        await hydrateBackendConfig();
         const [p, gh, lic, notif, tut] = await Promise.all([
+
           ProjectService.list(session.access_token).catch(() =>
             loadLocal<MskProject[]>("projects", []),
           ),
