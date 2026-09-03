@@ -14,7 +14,6 @@ import { loadLocal, saveLocal } from "@/lib/msk/core";
 import { githubUrlFor, lovableUrlFor } from "@/lib/msk/active-context";
 import { useMsk } from "@/lib/msk/provider";
 import { PreviewService } from "@/lib/msk/services";
-import { DEVICE_WIDTH } from "@/lib/msk/core";
 import { StatusDot } from "./TopBar";
 
 export function Preview() {
@@ -33,7 +32,6 @@ export function Preview() {
   const url = preview.url ?? PreviewService.url(activeProject);
   const lovable = lovableUrlFor(activeProject, activeContext);
   const github = githubUrlFor(activeProject, activeContext);
-  const width = DEVICE_WIDTH[device];
   const production = activeProject?.production_url ?? activeContext.productionUrl ?? null;
 
   /* ETAPAS DO SITE — descobertas do projeto real; nada é pré-definido. */
@@ -83,6 +81,12 @@ export function Preview() {
   }, [projectKey, url, routeKey]);
 
   const fullUrl = useMemo(() => (url ? joinPath(url, path) : null), [url, path]);
+  // Gera o cache-buster somente quando a URL muda ou o usuário pede recarga.
+  // Antes, Date.now() era executado em todo render e fazia o iframe piscar.
+  const iframeUrl = useMemo(
+    () => (fullUrl ? PreviewService.bust(fullUrl) : null),
+    [fullUrl, previewKey],
+  );
 
   return (
     <section className="flex min-h-0 flex-1 flex-col">
@@ -201,7 +205,7 @@ export function Preview() {
 
       <div
         ref={frameRef}
-        className="msk-scroll flex min-h-0 flex-1 items-stretch justify-center overflow-auto bg-background"
+        className="flex min-h-0 flex-1 items-stretch justify-center overflow-hidden bg-background"
       >
         {contextLoading ? (
           <EmptyState text="Conectando ao projeto ativo da extensão..." />
@@ -218,17 +222,17 @@ export function Preview() {
               </>
             }
           />
-        ) : (
-          <DeviceMockup device={device} width={width} zoom={zoom}>
+        ) : iframeUrl ? (
+          <DeviceMockup device={device} zoom={zoom}>
             <iframe
-              key={`${previewKey}-${activeProject?.id ?? "ctx"}-${url}`}
-              src={PreviewService.bust(fullUrl ?? url)}
+              key={`${previewKey}-${activeProject?.id ?? "ctx"}-${fullUrl}`}
+              src={iframeUrl}
               title={`Preview de ${activeProject?.name ?? activeContext.lovableProjectName ?? "projeto ativo"}`}
               className="size-full border-0 bg-white"
               sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
             />
           </DeviceMockup>
-        )}
+        ) : null}
       </div>
     </section>
   );
@@ -308,76 +312,65 @@ function joinPath(base: string, path: string): string {
 
 function DeviceMockup({
   device,
-  width,
   zoom,
   children,
 }: {
   device: "desktop" | "tablet" | "mobile";
-  width: number | null;
   zoom: number;
   children: React.ReactNode;
 }) {
   const scale = { transform: `scale(${zoom})`, transformOrigin: "top center" } as const;
+  const mobile = device === "mobile";
+  const tablet = device === "tablet";
 
-  if (device === "mobile") {
-    /* Smartphone — largura fixa do projeto (não depende da altura: não "buga" ao trocar de modo). */
-    const w = width ?? 390;
-    return (
-      <div style={scale} className="flex h-full items-start justify-center overflow-auto px-4 py-3">
-        <div className="relative shrink-0" style={{ width: `${w + 24}px`, aspectRatio: "9 / 19.2" }}>
-          {/* Botões laterais */}
-          <span className="absolute -left-[3px] top-[16%] h-7 w-[3px] rounded-l bg-[#5a070d]" />
-          <span className="absolute -left-[3px] top-[25%] h-11 w-[3px] rounded-l bg-[#5a070d]" />
-          <span className="absolute -left-[3px] top-[37%] h-11 w-[3px] rounded-l bg-[#5a070d]" />
-          <span className="absolute -right-[3px] top-[29%] h-16 w-[3px] rounded-r bg-[#5a070d]" />
-          {/* Moldura vermelho sangue — mais grossa */}
-          <div
-            className="size-full rounded-[46px] p-[5px] shadow-[0_24px_60px_-20px_rgba(120,0,10,0.65)]"
-            style={{
-              background:
-                "linear-gradient(160deg,#d92b33 0%,#7c0910 30%,#4a040a 55%,#7c0910 80%,#d92b33 100%)",
-            }}
-          >
-            <div className="size-full rounded-[41px] bg-[#1a0204] p-[9px]">
-              <div className="relative size-full overflow-hidden rounded-[32px] bg-black">
-                {/* Ilha estilo iPhone 17 — câmera no início da ilha, não no centro */}
-                <span className="pointer-events-none absolute left-1/2 top-[10px] z-10 flex h-[24px] w-[88px] -translate-x-1/2 items-center justify-start rounded-full bg-black pl-[7px] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]">
-                  <span className="relative size-[13px] rounded-full bg-[#0b0f1a] ring-1 ring-white/15">
-                    <span className="absolute inset-[3px] rounded-full bg-[#12284a]" />
-                    <span className="absolute left-[2px] top-[1px] size-[3px] rounded-full bg-white/70" />
-                  </span>
-                </span>
-                <div className="size-full">{children}</div>
-                {/* Barra de gestos */}
-                <span className="pointer-events-none absolute bottom-[6px] left-1/2 h-[4px] w-24 -translate-x-1/2 rounded-full bg-white/60" />
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (device === "tablet") {
-    return (
-      <div style={scale} className="flex h-full items-start justify-center py-2">
-        <div
-          className="h-full rounded-[28px] bg-neutral-900 p-[14px] shadow-[0_30px_80px_-20px_rgba(0,0,0,0.9)] ring-1 ring-white/10"
-          style={{ width: `${(width ?? 768) + 28}px`, maxWidth: "100%" }}
-        >
-          <div className="relative size-full overflow-hidden rounded-[16px] bg-black">
-            <span className="absolute left-1/2 top-[5px] z-10 size-[6px] -translate-x-1/2 rounded-full bg-neutral-700" />
-            <div className="size-full">{children}</div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Desktop — preview 100%, sem moldura: o site ocupa a tela inteira.
+  // A árvore do iframe permanece idêntica nos três modos. Assim, trocar o
+  // dispositivo só muda o enquadramento e não desmonta/recarrega o site.
   return (
-    <div style={scale} className="size-full">
-      <div className="size-full overflow-hidden bg-black">{children}</div>
+    <div
+      style={scale}
+      className={`flex size-full items-center justify-center overflow-hidden ${
+        device === "desktop" ? "p-0" : "p-2"
+      }`}
+    >
+      <div
+        className={`relative shrink-0 ${
+          mobile
+            ? "h-full max-h-full max-w-full aspect-[10.4/19.2]"
+            : tablet
+              ? "h-full max-h-full max-w-full aspect-[3/4]"
+              : "size-full"
+        }`}
+      >
+        <span className={`${mobile ? "block" : "hidden"} absolute -left-[3px] top-[16%] h-7 w-[3px] rounded-l bg-[#5a070d]`} />
+        <span className={`${mobile ? "block" : "hidden"} absolute -left-[3px] top-[25%] h-11 w-[3px] rounded-l bg-[#5a070d]`} />
+        <span className={`${mobile ? "block" : "hidden"} absolute -left-[3px] top-[37%] h-11 w-[3px] rounded-l bg-[#5a070d]`} />
+        <span className={`${mobile ? "block" : "hidden"} absolute -right-[3px] top-[29%] h-16 w-[3px] rounded-r bg-[#5a070d]`} />
+        <div
+          className={`size-full overflow-hidden ${
+            mobile
+              ? "rounded-[46px] bg-gradient-to-br from-[#d92b33] via-[#4a040a] to-[#d92b33] p-[5px] shadow-[0_24px_60px_-20px_rgba(120,0,10,0.65)]"
+              : tablet
+                ? "rounded-[28px] bg-neutral-900 p-[12px] shadow-[0_30px_80px_-20px_rgba(0,0,0,0.9)] ring-1 ring-white/10"
+                : "bg-black"
+          }`}
+        >
+          <div
+            className={`relative size-full overflow-hidden bg-black ${
+              mobile ? "rounded-[39px] border-[8px] border-[#1a0204]" : tablet ? "rounded-[17px]" : ""
+            }`}
+          >
+            <span className={`${mobile ? "flex" : "hidden"} pointer-events-none absolute left-1/2 top-[8px] z-10 h-[24px] w-[88px] -translate-x-1/2 items-center justify-start rounded-full bg-black pl-[7px] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]`}>
+              <span className="relative size-[13px] rounded-full bg-[#0b0f1a] ring-1 ring-white/15">
+                <span className="absolute inset-[3px] rounded-full bg-[#12284a]" />
+                <span className="absolute left-[2px] top-[1px] size-[3px] rounded-full bg-white/70" />
+              </span>
+            </span>
+            <span className={`${tablet ? "block" : "hidden"} pointer-events-none absolute left-1/2 top-[4px] z-10 size-[6px] -translate-x-1/2 rounded-full bg-neutral-700`} />
+            <div className="size-full overflow-hidden">{children}</div>
+            <span className={`${mobile ? "block" : "hidden"} pointer-events-none absolute bottom-[5px] left-1/2 h-[4px] w-24 -translate-x-1/2 rounded-full bg-white/60`} />
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
