@@ -170,8 +170,12 @@ export function LicenseProvider({ children }: { children: ReactNode }) {
     const expiresAt = active ? result.expiresAt : (result?.expiresAt ?? null);
     let pct: number | null = null;
     if (active && remainingSeconds !== null && result.expiresAt) {
-      const total =
-        (Date.parse(result.expiresAt) - Date.parse(startsAt ?? result.serverNow)) / 1000;
+      // total ESTÁVEL: duração real do plano (expiresAt - startsAt). Sem startsAt,
+      // cai para a base persistida (primeira observação) — nunca serverNow, que
+      // faria a barra voltar a ~100% a cada sincronização.
+      const total = startsAt
+        ? (Date.parse(result.expiresAt) - Date.parse(startsAt)) / 1000
+        : baselineTotal(result.expiresAt, remainingSeconds);
       pct = total > 0 ? Math.max(0, Math.min(100, (remainingSeconds / total) * 100)) : null;
     }
     return {
