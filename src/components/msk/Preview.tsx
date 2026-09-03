@@ -175,7 +175,7 @@ export function Preview() {
           </div>
         )}
         <span className="ml-auto shrink-0 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-          {device === "mobile" ? "iPhone 17" : device === "tablet" ? "Tablet" : "MacBook"}
+          {device === "mobile" ? "Mobile" : device === "tablet" ? "Tablet" : "Desktop"}
         </span>
         <IconBtn label="Recarregar preview" onClick={reloadPreview}>
           <RefreshCw className="size-3.5" />
@@ -320,14 +320,10 @@ function DeviceMockup({
   const scale = { transform: `scale(${zoom})`, transformOrigin: "top center" } as const;
 
   if (device === "mobile") {
-    /* iPhone — moldura reta e fina, vermelho sangue, câmera discreta. */
-    const w = width ?? 390;
+    /* Celular fino — proporção real de smartphone, moldura vermelho sangue. */
     return (
       <div style={scale} className="flex h-full items-center justify-center px-2">
-        <div
-          className="relative h-full max-h-full"
-          style={{ width: `${w + 18}px`, maxWidth: "100%", aspectRatio: `${w + 18} / 900` }}
-        >
+        <div className="relative h-full max-h-full" style={{ aspectRatio: "9 / 19.2" }}>
           {/* Botões laterais */}
           <span className="absolute -left-[2px] top-[18%] h-6 w-[2px] rounded-l bg-[#4a060b]" />
           <span className="absolute -left-[2px] top-[26%] h-10 w-[2px] rounded-l bg-[#4a060b]" />
@@ -335,21 +331,24 @@ function DeviceMockup({
           <span className="absolute -right-[2px] top-[30%] h-14 w-[2px] rounded-r bg-[#4a060b]" />
           {/* Moldura vermelho sangue */}
           <div
-            className="h-full rounded-[48px] p-[2.5px] shadow-[0_24px_60px_-20px_rgba(120,0,10,0.65)]"
+            className="h-full rounded-[40px] p-[2.5px] shadow-[0_24px_60px_-20px_rgba(120,0,10,0.65)]"
             style={{
               background:
                 "linear-gradient(160deg,#d92b33 0%,#7c0910 30%,#4a040a 55%,#7c0910 80%,#d92b33 100%)",
             }}
           >
-            <div className="h-full rounded-[46px] bg-[#1a0204] p-[7px]">
-              <div className="relative size-full overflow-hidden rounded-[39px] bg-black">
-                {/* Câmera frontal — furo discreto centralizado */}
-                <span className="pointer-events-none absolute left-1/2 top-[12px] z-10 size-[14px] -translate-x-1/2 rounded-full bg-black ring-1 ring-white/10">
-                  <span className="absolute inset-[4px] rounded-full bg-[#12284a]" />
+            <div className="h-full rounded-[38px] bg-[#1a0204] p-[6px]">
+              <div className="relative size-full overflow-hidden rounded-[32px] bg-black">
+                {/* Câmera — bola/círculo estilo ilha */}
+                <span className="pointer-events-none absolute left-1/2 top-[10px] z-10 flex h-[22px] w-[76px] -translate-x-1/2 items-center justify-center rounded-full bg-black shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]">
+                  <span className="relative size-[11px] rounded-full bg-[#0b0f1a] ring-1 ring-white/15">
+                    <span className="absolute inset-[3px] rounded-full bg-[#12284a]" />
+                    <span className="absolute left-[2px] top-[1px] size-[3px] rounded-full bg-white/70" />
+                  </span>
                 </span>
                 <div className="size-full">{children}</div>
                 {/* Barra de gestos */}
-                <span className="pointer-events-none absolute bottom-[7px] left-1/2 h-[4px] w-28 -translate-x-1/2 rounded-full bg-white/60" />
+                <span className="pointer-events-none absolute bottom-[6px] left-1/2 h-[4px] w-24 -translate-x-1/2 rounded-full bg-white/60" />
               </div>
             </div>
           </div>

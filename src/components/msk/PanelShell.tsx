@@ -1,18 +1,25 @@
 import { useCallback, useEffect, useState } from "react";
 import {
+  Check,
   FolderGit2,
   History,
   Link2,
+  Loader2,
+  Menu,
   MessageSquare,
   MonitorSmartphone,
   PanelLeftOpen,
   PanelRightOpen,
   Paperclip,
+  Rocket,
+  Share2,
   ShieldCheck,
   GraduationCap,
+  X,
 } from "lucide-react";
 
 import { MskProvider, useMsk } from "@/lib/msk/provider";
+import { useLicense } from "@/lib/msk/license-context";
 import { TopBar } from "./TopBar";
 import { ContextBar } from "./ContextBar";
 import { Preview } from "./Preview";
@@ -59,10 +66,37 @@ export function MskPanel() {
 }
 
 function PanelInner() {
-  const { addFiles, backendConfigured, backendError } = useMsk();
+  const { addFiles, backendConfigured, backendError, activeProject } = useMsk();
+  const { ensureActive } = useLicense();
   const [tab, setTab] = useState<TabKey>("chat");
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [shared, setShared] = useState(false);
+  const [publishingNow, setPublishingNow] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [publishing, setPublishing] = useState(false);
+
+  async function handleShare() {
+    const url =
+      activeProject?.preview_url ?? activeProject?.lovable_url ?? window.location.href;
+    try {
+      if (navigator.share) await navigator.share({ title: activeProject?.name ?? "MSK", url });
+      else await navigator.clipboard.writeText(url);
+      setShared(true);
+      setTimeout(() => setShared(false), 1600);
+    } catch {
+      /* cancelado */
+    }
+  }
+
+  // Operação sensível: revalida a licença no SERVIDOR antes de publicar.
+  async function handlePublish() {
+    setPublishingNow(true);
+    try {
+      if (await ensureActive()) setPublishing(true);
+    } finally {
+      setPublishingNow(false);
+    }
+  }
   const [collapsed, setCollapsed] = useState(false);
   const [width, setWidth] = useState(380);
 
@@ -140,7 +174,7 @@ function PanelInner() {
 
   return (
     <div className="flex h-screen min-h-screen flex-col overflow-hidden bg-background text-foreground">
-      <TopBar onPublish={() => setPublishing(true)} />
+      <TopBar />
 
       {!backendConfigured && (
         <div className="border-b border-border bg-surface px-4 py-2 text-center text-xs text-muted-foreground">
@@ -192,26 +226,82 @@ function PanelInner() {
               )}
             </button>
             {!collapsed && (
-              <nav className="flex flex-wrap gap-1">
-                {TABS.map(({ key, label, Icon }) => (
+              <>
+                {/* Aba atual em destaque; demais opções ficam no menu. */}
+                <span className="flex min-w-0 items-center gap-1.5 px-1.5 text-xs font-semibold">
+                  {(() => {
+                    const current = TABS.find((t) => t.key === tab) ?? TABS[0]!;
+                    return (
+                      <>
+                        <current.Icon className="size-3.5 shrink-0 text-primary" />
+                        <span className="truncate">{current.label}</span>
+                      </>
+                    );
+                  })()}
+                </span>
+                <div className="ml-auto flex shrink-0 items-center gap-1">
                   <button
-                    key={key}
                     type="button"
-                    onClick={() => setTab(key)}
-                    aria-pressed={tab === key}
-                    className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs transition-colors ${
-                      tab === key
-                        ? "bg-primary text-primary-foreground"
-                        : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-                    }`}
+                    onClick={() => void handleShare()}
+                    title="Compartilhar link do projeto"
+                    className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground"
                   >
-                    <Icon className="size-3.5" />
-                    {label}
+                    {shared ? (
+                      <Check className="size-4 text-primary" />
+                    ) : (
+                      <Share2 className="size-4" />
+                    )}
                   </button>
-                ))}
-              </nav>
+                  <button
+                    type="button"
+                    onClick={() => void handlePublish()}
+                    disabled={!activeProject || publishingNow}
+                    title="Publicar projeto"
+                    className="flex items-center gap-1 rounded-md bg-primary px-2 py-1 text-[11px] font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
+                  >
+                    {publishingNow ? (
+                      <Loader2 className="size-3.5 animate-spin" />
+                    ) : (
+                      <Rocket className="size-3.5" />
+                    )}
+                    Publicar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMenuOpen((v) => !v)}
+                    title={menuOpen ? "Fechar menu" : "Abrir opções"}
+                    aria-expanded={menuOpen}
+                    className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground"
+                  >
+                    {menuOpen ? <X className="size-4" /> : <Menu className="size-4" />}
+                  </button>
+                </div>
+              </>
             )}
           </div>
+          {!collapsed && menuOpen && (
+            <nav className="flex flex-wrap gap-1 border-b border-border p-2">
+              {TABS.map(({ key, label, Icon }) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => {
+                    setTab(key);
+                    setMenuOpen(false);
+                  }}
+                  aria-pressed={tab === key}
+                  className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs transition-colors ${
+                    tab === key
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                  }`}
+                >
+                  <Icon className="size-3.5" />
+                  {label}
+                </button>
+              ))}
+            </nav>
+          )}
           {collapsed ? (
             <div className="flex flex-col items-center gap-1 p-1">
               {TABS.map(({ key, label, Icon }) => (
