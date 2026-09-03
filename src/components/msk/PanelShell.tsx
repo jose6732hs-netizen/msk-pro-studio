@@ -151,7 +151,7 @@ function PanelInner() {
 
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row">
         <main className="order-1 flex min-h-0 min-w-0 flex-1 flex-col">
-          <ContextBar onOpenTab={(t) => setTab(t as TabKey)} />
+          {/* Preview limpo: só a barra fina + o projeto, sem cards em cima. */}
           <Preview />
         </main>
 
@@ -177,6 +177,7 @@ function PanelInner() {
           }`}
           style={{ width: collapsed ? 52 : width }}
         >
+          {!collapsed && <ContextBar onOpenTab={(t) => setTab(t as TabKey)} />}
           <div className="flex items-center gap-1 border-b border-border p-2">
             <button
               type="button"

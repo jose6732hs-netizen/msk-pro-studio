@@ -320,35 +320,36 @@ function DeviceMockup({
   const scale = { transform: `scale(${zoom})`, transformOrigin: "top center" } as const;
 
   if (device === "mobile") {
-    /* iPhone 17 — acabamento vermelho sangue, ilha dinâmica com câmera real. */
+    /* iPhone — moldura reta e fina, vermelho sangue, câmera discreta. */
+    const w = width ?? 390;
     return (
-      <div style={scale} className="flex h-full items-start justify-center py-2">
+      <div style={scale} className="flex h-full items-center justify-center px-2">
         <div
-          className="relative h-full"
-          style={{ width: `${(width ?? 390) + 26}px`, maxWidth: "100%" }}
+          className="relative h-full max-h-full"
+          style={{ width: `${w + 18}px`, maxWidth: "100%", aspectRatio: `${w + 18} / 900` }}
         >
-          <span className="absolute -left-[3px] top-[16%] h-7 w-[3px] rounded-l-sm bg-[#5d0a0f]" />
-          <span className="absolute -left-[3px] top-[24%] h-12 w-[3px] rounded-l-sm bg-[#5d0a0f]" />
-          <span className="absolute -left-[3px] top-[36%] h-12 w-[3px] rounded-l-sm bg-[#5d0a0f]" />
-          <span className="absolute -right-[3px] top-[28%] h-16 w-[3px] rounded-r-sm bg-[#5d0a0f]" />
+          {/* Botões laterais */}
+          <span className="absolute -left-[2px] top-[18%] h-6 w-[2px] rounded-l bg-[#4a060b]" />
+          <span className="absolute -left-[2px] top-[26%] h-10 w-[2px] rounded-l bg-[#4a060b]" />
+          <span className="absolute -left-[2px] top-[38%] h-10 w-[2px] rounded-l bg-[#4a060b]" />
+          <span className="absolute -right-[2px] top-[30%] h-14 w-[2px] rounded-r bg-[#4a060b]" />
+          {/* Moldura vermelho sangue */}
           <div
-            className="h-full rounded-[52px] p-[3px] shadow-[0_40px_90px_-24px_rgba(120,0,10,0.75)]"
+            className="h-full rounded-[48px] p-[2.5px] shadow-[0_24px_60px_-20px_rgba(120,0,10,0.65)]"
             style={{
               background:
-                "linear-gradient(150deg,#ff5a5a 0%,#a10711 18%,#6b0009 50%,#a10711 82%,#ff6b6b 100%)",
+                "linear-gradient(160deg,#d92b33 0%,#7c0910 30%,#4a040a 55%,#7c0910 80%,#d92b33 100%)",
             }}
           >
-            <div className="h-full rounded-[49px] bg-[#3d0409] p-[9px]">
-              <div className="relative h-full overflow-hidden rounded-[41px] bg-black ring-1 ring-black/60">
-                <div className="pointer-events-none absolute left-1/2 top-[9px] z-10 flex h-[30px] w-[112px] -translate-x-1/2 items-center justify-between rounded-full bg-black px-3 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06)]">
-                  <span className="relative size-[13px] rounded-full bg-[#0b0f1a] ring-1 ring-white/15">
-                    <span className="absolute inset-[3px] rounded-full bg-[#12284a]" />
-                    <span className="absolute left-[3px] top-[2px] size-[3px] rounded-full bg-white/70" />
-                  </span>
-                  <span className="size-[6px] rounded-full bg-[#101010] ring-1 ring-white/10" />
-                </div>
-                <div className="size-full overflow-hidden rounded-[41px]">{children}</div>
-                <div className="pointer-events-none absolute bottom-[6px] left-1/2 h-[4px] w-32 -translate-x-1/2 rounded-full bg-white/70" />
+            <div className="h-full rounded-[46px] bg-[#1a0204] p-[7px]">
+              <div className="relative size-full overflow-hidden rounded-[39px] bg-black">
+                {/* Câmera frontal — furo discreto centralizado */}
+                <span className="pointer-events-none absolute left-1/2 top-[12px] z-10 size-[14px] -translate-x-1/2 rounded-full bg-black ring-1 ring-white/10">
+                  <span className="absolute inset-[4px] rounded-full bg-[#12284a]" />
+                </span>
+                <div className="size-full">{children}</div>
+                {/* Barra de gestos */}
+                <span className="pointer-events-none absolute bottom-[7px] left-1/2 h-[4px] w-28 -translate-x-1/2 rounded-full bg-white/60" />
               </div>
             </div>
           </div>
