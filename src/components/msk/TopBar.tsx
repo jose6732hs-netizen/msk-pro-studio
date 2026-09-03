@@ -6,9 +6,6 @@ import {
   Monitor,
   Puzzle,
   RefreshCw,
-  Rocket,
-  Share2,
-  Check,
   Smartphone,
   Tablet,
 } from "lucide-react";
@@ -17,7 +14,6 @@ import mskLogo from "@/assets/msk-logo.png.asset.json";
 import { useMsk } from "@/lib/msk/provider";
 import { NotificationsPopover } from "./Overlays";
 import { LicenseCountdown } from "./License";
-import { useLicense } from "@/lib/msk/license-context";
 import type { Device } from "@/lib/msk/core";
 import { useExtensionBridge } from "@/lib/msk/use-bridge";
 
