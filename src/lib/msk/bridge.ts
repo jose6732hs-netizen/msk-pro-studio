@@ -18,7 +18,16 @@ export const MSK_EVENTS = {
   PANEL_HELLO: "MSK_PANEL_HELLO",
   PANEL_READY: "MSK_PANEL_READY",
   EXTENSION_READY: "MSK_EXTENSION_READY",
+  ACTIVE_CONTEXT_UPDATED: "MSK_ACTIVE_CONTEXT_UPDATED",
   ACTIVE_PROJECT_CHANGED: "MSK_ACTIVE_PROJECT_CHANGED",
+  PROJECT_CHANGED: "MSK_PROJECT_CHANGED",
+  REPOSITORY_CHANGED: "MSK_REPOSITORY_CHANGED",
+  BRANCH_CHANGED: "MSK_BRANCH_CHANGED",
+  PREVIEW_CHANGED: "MSK_PREVIEW_CHANGED",
+  CONVERSATION_CHANGED: "MSK_CONVERSATION_CHANGED",
+  RUN_CHANGED: "MSK_RUN_CHANGED",
+  SKILLS_CHANGED: "MSK_SKILLS_CHANGED",
+  PANEL_PROJECT_SELECTED: "MSK_PANEL_PROJECT_SELECTED",
   RUN_CREATED: "MSK_RUN_CREATED",
   RUN_UPDATED: "MSK_RUN_UPDATED",
   RUN_COMPLETED: "MSK_RUN_COMPLETED",
@@ -48,6 +57,7 @@ export interface ExtensionStatus {
   activeLovableProjectId: string | null;
   activeLovableUrl: string | null;
   currentRunId: string | null;
+  pinned: boolean;
 }
 
 export const UNKNOWN_EXTENSION: ExtensionStatus = {
@@ -59,6 +69,7 @@ export const UNKNOWN_EXTENSION: ExtensionStatus = {
   activeLovableProjectId: null,
   activeLovableUrl: null,
   currentRunId: null,
+  pinned: false,
 };
 
 /* ------------------------------------------------------------------ */
@@ -140,7 +151,11 @@ export function startBridge(onStatus: (status: ExtensionStatus) => void): () => 
         activeLovableProjectId: (payload["activeLovableProjectId"] as string) ?? null,
         activeLovableUrl: (payload["activeLovableUrl"] as string) ?? null,
         currentRunId: (payload["currentRunId"] as string) ?? null,
+        pinned: Boolean(payload["pinned"]),
       });
+
+      // O EXTENSION_READY também carrega o ActiveContext completo.
+      MskEventBus.emit(MSK_EVENTS.ACTIVE_CONTEXT_UPDATED, payload);
     }
 
     MskEventBus.emit(type, payload);
