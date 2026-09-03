@@ -50,14 +50,12 @@ function Gated({ children }: { children: ReactNode }) {
 export { LicenseCountdown };
 
 /**
- * Validador profissional de acesso: e-mail + senha OU e-mail + licença
+ * Validador profissional de acesso: e-mail + licença MSK
  * (a mesma licença já validada no popup da extensão).
  * A credencial é verificada no SERVIDOR; aqui só guardamos o vínculo local.
  */
 function AccessForm({ onDone }: { onDone: () => void }) {
-  const [mode, setMode] = useState<"password" | "license">("password");
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [license, setLicense] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -73,7 +71,6 @@ function AccessForm({ onDone }: { onDone: () => void }) {
           setEmail(parsed.email);
           if (parsed.key) {
             setLicense(parsed.key);
-            setMode("license");
             setLinked(parsed.email);
           }
         }
@@ -88,32 +85,21 @@ function AccessForm({ onDone }: { onDone: () => void }) {
     setBusy(true);
     setError(null);
     try {
-      const body =
-        mode === "password"
-          ? { mode, email: email.trim(), password }
-          : { mode, email: email.trim(), license: license.trim() };
       const res = await fetch("/api/license/activate", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify({ mode: "license", email: email.trim(), license: license.trim() }),
         cache: "no-store",
       });
-      const data = (await res.json()) as { ok?: boolean; code?: string; accessToken?: string };
+      const data = (await res.json()) as { ok?: boolean; code?: string };
       if (!res.ok || !data.ok) {
         setError(ACCESS_ERRORS[data.code ?? ""] ?? "Não foi possível validar o acesso.");
         return;
       }
-      if (mode === "password" && data.accessToken) {
-        window.localStorage.setItem(
-          "msk.panel.session",
-          JSON.stringify({ access_token: data.accessToken, email: email.trim() }),
-        );
-      } else {
-        window.localStorage.setItem(
-          "msk.panel.license",
-          JSON.stringify({ email: email.trim(), key: license.trim() }),
-        );
-      }
+      window.localStorage.setItem(
+        "msk.panel.license",
+        JSON.stringify({ email: email.trim(), key: license.trim() }),
+      );
       onDone();
     } catch {
       setError("Falha de conexão com o servidor MSK.");
@@ -133,23 +119,6 @@ function AccessForm({ onDone }: { onDone: () => void }) {
         </p>
       )}
 
-      <div className="grid grid-cols-2 gap-2">
-        {(["password", "license"] as const).map((m) => (
-          <button
-            key={m}
-            type="button"
-            onClick={() => setMode(m)}
-            className={`rounded-lg border px-3 py-2 text-[11px] uppercase tracking-[0.14em] transition-colors ${
-              mode === m
-                ? "border-primary bg-primary/10 text-primary"
-                : "border-border text-muted-foreground hover:bg-secondary"
-            }`}
-          >
-            {m === "password" ? "E-mail e senha" : "Licença"}
-          </button>
-        ))}
-      </div>
-
       <label className="block space-y-1">
         <span className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">E-mail</span>
         <input
@@ -163,39 +132,24 @@ function AccessForm({ onDone }: { onDone: () => void }) {
         />
       </label>
 
-      {mode === "password" ? (
-        <label className="block space-y-1">
-          <span className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Senha</span>
-          <input
-            type="password"
-            required
-            minLength={6}
-            maxLength={200}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="••••••••"
-            className={inputClass}
-          />
-        </label>
-      ) : (
-        <label className="block space-y-1">
-          <span className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-            Licença MSK
-          </span>
-          <input
-            type="text"
-            required
-            minLength={6}
-            maxLength={200}
-            value={license}
-            onChange={(e) => setLicense(e.target.value)}
-            placeholder="Cole sua licença MSK"
-            autoComplete="off"
-            spellCheck={false}
-            className={inputClass}
-          />
-        </label>
-      )}
+      <label className="block space-y-1">
+        <span className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+          Licença MSK
+        </span>
+        <input
+          type="text"
+          required
+          minLength={6}
+          maxLength={200}
+          value={license}
+          onChange={(e) => setLicense(e.target.value)}
+          placeholder="MSK-XXXX-XXXX-XXXX-XXXX"
+          autoComplete="off"
+          spellCheck={false}
+          className={inputClass}
+        />
+      </label>
+
 
       {error && <p className="text-xs text-destructive">{error}</p>}
 
