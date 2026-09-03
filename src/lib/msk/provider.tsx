@@ -763,7 +763,9 @@ export function MskProvider({ children }: { children: ReactNode }) {
       setReposLoading(false);
       if (payload["connected"] === true) setGithub((prev) => ({ ...prev, connected: true }));
     });
-    return off;
+    return () => {
+      off();
+    };
   }, []);
 
   /* ---- GitHub: mesma conexão da extensão (OAuth server-side) ---- */
