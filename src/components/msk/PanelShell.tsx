@@ -177,6 +177,7 @@ function PanelInner() {
           }`}
           style={{ width: collapsed ? 52 : width }}
         >
+          {!collapsed && <ContextBar onOpenTab={(t) => setTab(t as TabKey)} />}
           <div className="flex items-center gap-1 border-b border-border p-2">
             <button
               type="button"
