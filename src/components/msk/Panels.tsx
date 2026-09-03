@@ -11,7 +11,14 @@ import {
   Youtube,
 } from "lucide-react";
 import { useMemo, useState } from "react";
-import { useLicense } from "@/lib/msk/license-context";
+import {
+  formatCountdown,
+  formatDateTime,
+  toneFor,
+  useLicense,
+} from "@/lib/msk/license-context";
+import { LicenseStatusBadge } from "./License";
+
 import { useMsk } from "@/lib/msk/provider";
 import { BrandingService, GitHubService } from "@/lib/msk/services";
 import { formatRemaining, timeAgo, type MskProject } from "@/lib/msk/core";
@@ -482,53 +489,94 @@ function ConnectionCard({
 /* --------------------------- Licença / uso / tutoriais -------------------- */
 
 export function LicensePanel() {
-  const { license, session, backendConfigured } = useMsk();
-  const remaining = formatRemaining(license?.expires_at ?? null);
+  const { session } = useMsk();
+  const {
+    loading,
+    checking,
+    active,
+    plan,
+    startsAt,
+    expiresAt,
+    remainingSeconds,
+    remainingPercentage,
+    limits,
+    usage,
+    refresh,
+  } = useLicense();
+
+  const tone = toneFor(remainingPercentage, remainingSeconds);
   const barColor =
-    remaining.level === "green"
-      ? "bg-primary"
-      : remaining.level === "yellow"
-        ? "bg-warning"
-        : "bg-destructive";
+    tone === "normal" ? "bg-primary" : tone === "warning" ? "bg-warning" : "bg-destructive";
+  const pct = remainingPercentage ?? (active ? 100 : 0);
+
+  const metric = (used: unknown, limit: unknown) => {
+    const u = typeof used === "number" ? used : null;
+    const l = typeof limit === "number" ? limit : null;
+    if (u === null && l === null) return "—";
+    return `${u ?? 0} / ${l ?? "∞"}`;
+  };
 
   return (
     <div className="msk-scroll min-h-0 flex-1 space-y-3 overflow-y-auto p-3">
       <div className="msk-panel p-3">
-        <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Plano atual</p>
-        <p className="mt-1 text-sm font-medium">
-          {license?.plan ?? (backendConfigured ? "Sem licença registrada" : "Backend não conectado")}
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <p className="text-[10px] uppercase tracking-widest text-muted-foreground">
+              Plano atual
+            </p>
+            <p className="mt-1 text-sm font-medium">
+              {loading
+                ? "Verificando licença…"
+                : active
+                  ? (plan ?? "MSK Agente")
+                  : "Sem licença ativa"}
+            </p>
+          </div>
+          <LicenseStatusBadge />
+        </div>
+
+        <p className="mt-2 text-xs text-muted-foreground">
+          Tempo restante:{" "}
+          <span className="font-mono text-foreground">
+            {active ? formatCountdown(remainingSeconds) : "—"}
+          </span>
         </p>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Tempo restante: <span className="text-foreground">{remaining.label}</span>
-        </p>
-        {license?.expires_at && (
-          <p className="text-[11px] text-muted-foreground">
-            Expira: {new Date(license.expires_at).toLocaleString("pt-BR")}
-          </p>
-        )}
-        <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-secondary">
+
+        <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-secondary">
           <div
-            className={`h-full ${barColor}`}
-            style={{ width: `${Math.round(remaining.ratio * 100)}%` }}
+            className={`h-full ${barColor} transition-[width] duration-1000`}
+            style={{ width: `${Math.max(0, Math.min(100, pct))}%` }}
           />
         </div>
         <p className="mt-1 text-[10px] text-muted-foreground">
-          Tempo calculado pela data de expiração do servidor.
+          {Math.round(Math.max(0, Math.min(100, pct)))}% do período restante · relógio do servidor
         </p>
+
+        <dl className="mt-3 grid grid-cols-2 gap-2 text-[11px]">
+          <div>
+            <dt className="text-muted-foreground">Ativação</dt>
+            <dd>{formatDateTime(startsAt)}</dd>
+          </div>
+          <div>
+            <dt className="text-muted-foreground">Expiração</dt>
+            <dd>{formatDateTime(expiresAt)}</dd>
+          </div>
+        </dl>
+
+        <button
+          type="button"
+          onClick={() => void refresh()}
+          disabled={checking}
+          className="mt-3 w-full rounded-md border border-border px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:opacity-50"
+        >
+          {checking ? "Verificando no servidor…" : "Revalidar licença"}
+        </button>
       </div>
 
       <div className="grid grid-cols-2 gap-2">
-        <Metric
-          label="Edições"
-          value={
-            license ? `${license.edits_used} / ${license.edits_limit ?? "∞"}` : "—"
-          }
-        />
-        <Metric
-          label="IA"
-          value={license?.ai_spend != null ? `R$ ${license.ai_spend.toFixed(2)}` : "—"}
-        />
-        <Metric label="Arquivos enviados" value={license ? String(license.files_sent) : "—"} />
+        <Metric label="Edições" value={metric(usage?.["edits"], limits?.["edits"])} />
+        <Metric label="IA" value={metric(usage?.["ai_calls"], limits?.["ai_calls"])} />
+        <Metric label="Arquivos enviados" value={metric(usage?.["uploads"], limits?.["uploads"])} />
         <Metric label="Sessão" value={session.email ?? "—"} />
       </div>
 
@@ -536,6 +584,7 @@ export function LicensePanel() {
     </div>
   );
 }
+
 
 function Metric({ label, value }: { label: string; value: string }) {
   return (
