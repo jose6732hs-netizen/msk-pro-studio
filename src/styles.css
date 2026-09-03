@@ -127,8 +127,8 @@
     color: var(--color-foreground);
     font-family: var(--font-sans);
     background-image:
-      radial-gradient(60rem 34rem at 12% -12%, oklch(0.84 0.21 148 / 9%), transparent 60%),
-      radial-gradient(52rem 30rem at 96% 0%, oklch(0.62 0.23 300 / 10%), transparent 62%);
+      radial-gradient(60rem 34rem at 12% -12%, oklch(0.87 0.26 143 / 8%), transparent 62%),
+      radial-gradient(52rem 30rem at 96% 0%, oklch(0.87 0.26 143 / 5%), transparent 64%);
     background-attachment: fixed;
   }
 }
