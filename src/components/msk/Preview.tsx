@@ -25,7 +25,6 @@ export function Preview() {
     contextLoading,
     device,
     zoom,
-    setZoom,
     previewStatus,
     previewKey,
     reloadPreview,
@@ -321,21 +320,36 @@ function DeviceMockup({
   const scale = { transform: `scale(${zoom})`, transformOrigin: "top center" } as const;
 
   if (device === "mobile") {
+    /* iPhone 17 — acabamento vermelho sangue, ilha dinâmica com câmera real. */
     return (
       <div style={scale} className="flex h-full items-start justify-center py-2">
-        <div className="relative h-full" style={{ width: `${(width ?? 390) + 22}px`, maxWidth: "100%" }}>
-          {/* botões laterais */}
-          <span className="absolute -left-[3px] top-[110px] h-8 w-[3px] rounded-l bg-neutral-700" />
-          <span className="absolute -left-[3px] top-[160px] h-14 w-[3px] rounded-l bg-neutral-700" />
-          <span className="absolute -right-[3px] top-[150px] h-20 w-[3px] rounded-r bg-neutral-700" />
-          <div className="h-full rounded-[46px] bg-neutral-900 p-[11px] shadow-[0_30px_80px_-20px_rgba(0,0,0,0.9)] ring-1 ring-white/10">
-            <div className="relative h-full overflow-hidden rounded-[36px] bg-black">
-              {/* dynamic island */}
-              <div className="pointer-events-none absolute left-1/2 top-2 z-10 h-[26px] w-[104px] -translate-x-1/2 rounded-full bg-black">
-                <span className="absolute right-3 top-1/2 size-[9px] -translate-y-1/2 rounded-full bg-neutral-800 ring-1 ring-neutral-700" />
+        <div
+          className="relative h-full"
+          style={{ width: `${(width ?? 390) + 26}px`, maxWidth: "100%" }}
+        >
+          <span className="absolute -left-[3px] top-[16%] h-7 w-[3px] rounded-l-sm bg-[#5d0a0f]" />
+          <span className="absolute -left-[3px] top-[24%] h-12 w-[3px] rounded-l-sm bg-[#5d0a0f]" />
+          <span className="absolute -left-[3px] top-[36%] h-12 w-[3px] rounded-l-sm bg-[#5d0a0f]" />
+          <span className="absolute -right-[3px] top-[28%] h-16 w-[3px] rounded-r-sm bg-[#5d0a0f]" />
+          <div
+            className="h-full rounded-[52px] p-[3px] shadow-[0_40px_90px_-24px_rgba(120,0,10,0.75)]"
+            style={{
+              background:
+                "linear-gradient(150deg,#ff5a5a 0%,#a10711 18%,#6b0009 50%,#a10711 82%,#ff6b6b 100%)",
+            }}
+          >
+            <div className="h-full rounded-[49px] bg-[#3d0409] p-[9px]">
+              <div className="relative h-full overflow-hidden rounded-[41px] bg-black ring-1 ring-black/60">
+                <div className="pointer-events-none absolute left-1/2 top-[9px] z-10 flex h-[30px] w-[112px] -translate-x-1/2 items-center justify-between rounded-full bg-black px-3 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06)]">
+                  <span className="relative size-[13px] rounded-full bg-[#0b0f1a] ring-1 ring-white/15">
+                    <span className="absolute inset-[3px] rounded-full bg-[#12284a]" />
+                    <span className="absolute left-[3px] top-[2px] size-[3px] rounded-full bg-white/70" />
+                  </span>
+                  <span className="size-[6px] rounded-full bg-[#101010] ring-1 ring-white/10" />
+                </div>
+                <div className="size-full overflow-hidden rounded-[41px]">{children}</div>
+                <div className="pointer-events-none absolute bottom-[6px] left-1/2 h-[4px] w-32 -translate-x-1/2 rounded-full bg-white/70" />
               </div>
-              <div className="size-full overflow-hidden rounded-[36px]">{children}</div>
-              <div className="pointer-events-none absolute bottom-1.5 left-1/2 h-[4px] w-28 -translate-x-1/2 rounded-full bg-white/70" />
             </div>
           </div>
         </div>
