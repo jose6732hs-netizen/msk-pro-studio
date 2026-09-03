@@ -320,28 +320,29 @@ function DeviceMockup({
   const scale = { transform: `scale(${zoom})`, transformOrigin: "top center" } as const;
 
   if (device === "mobile") {
-    /* Celular fino — proporção real de smartphone, moldura vermelho sangue. */
+    /* Smartphone — largura fixa do projeto (não depende da altura: não "buga" ao trocar de modo). */
+    const w = width ?? 390;
     return (
-      <div style={scale} className="flex h-full items-center justify-center px-2">
-        <div className="relative h-full max-h-full" style={{ aspectRatio: "9 / 19.2" }}>
+      <div style={scale} className="flex h-full items-start justify-center overflow-auto px-4 py-3">
+        <div className="relative shrink-0" style={{ width: `${w + 24}px`, aspectRatio: "9 / 19.2" }}>
           {/* Botões laterais */}
-          <span className="absolute -left-[2px] top-[18%] h-6 w-[2px] rounded-l bg-[#4a060b]" />
-          <span className="absolute -left-[2px] top-[26%] h-10 w-[2px] rounded-l bg-[#4a060b]" />
-          <span className="absolute -left-[2px] top-[38%] h-10 w-[2px] rounded-l bg-[#4a060b]" />
-          <span className="absolute -right-[2px] top-[30%] h-14 w-[2px] rounded-r bg-[#4a060b]" />
-          {/* Moldura vermelho sangue */}
+          <span className="absolute -left-[3px] top-[16%] h-7 w-[3px] rounded-l bg-[#5a070d]" />
+          <span className="absolute -left-[3px] top-[25%] h-11 w-[3px] rounded-l bg-[#5a070d]" />
+          <span className="absolute -left-[3px] top-[37%] h-11 w-[3px] rounded-l bg-[#5a070d]" />
+          <span className="absolute -right-[3px] top-[29%] h-16 w-[3px] rounded-r bg-[#5a070d]" />
+          {/* Moldura vermelho sangue — mais grossa */}
           <div
-            className="h-full rounded-[40px] p-[2.5px] shadow-[0_24px_60px_-20px_rgba(120,0,10,0.65)]"
+            className="size-full rounded-[46px] p-[5px] shadow-[0_24px_60px_-20px_rgba(120,0,10,0.65)]"
             style={{
               background:
                 "linear-gradient(160deg,#d92b33 0%,#7c0910 30%,#4a040a 55%,#7c0910 80%,#d92b33 100%)",
             }}
           >
-            <div className="h-full rounded-[38px] bg-[#1a0204] p-[6px]">
+            <div className="size-full rounded-[41px] bg-[#1a0204] p-[9px]">
               <div className="relative size-full overflow-hidden rounded-[32px] bg-black">
-                {/* Câmera — bola/círculo estilo ilha */}
-                <span className="pointer-events-none absolute left-1/2 top-[10px] z-10 flex h-[22px] w-[76px] -translate-x-1/2 items-center justify-center rounded-full bg-black shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]">
-                  <span className="relative size-[11px] rounded-full bg-[#0b0f1a] ring-1 ring-white/15">
+                {/* Ilha estilo iPhone 17 — câmera no início da ilha, não no centro */}
+                <span className="pointer-events-none absolute left-1/2 top-[10px] z-10 flex h-[24px] w-[88px] -translate-x-1/2 items-center justify-start rounded-full bg-black pl-[7px] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]">
+                  <span className="relative size-[13px] rounded-full bg-[#0b0f1a] ring-1 ring-white/15">
                     <span className="absolute inset-[3px] rounded-full bg-[#12284a]" />
                     <span className="absolute left-[2px] top-[1px] size-[3px] rounded-full bg-white/70" />
                   </span>
