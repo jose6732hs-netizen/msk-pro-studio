@@ -83,7 +83,7 @@ function AccessForm({ onDone }: { onDone: () => void }) {
     }
   }, []);
 
-  async function submit(event: React.FormEvent) {
+  async function submit(event: import("react").FormEvent) {
     event.preventDefault();
     setBusy(true);
     setError(null);
