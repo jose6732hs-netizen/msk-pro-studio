@@ -86,8 +86,8 @@ export function Preview() {
 
   return (
     <section className="flex min-h-0 flex-1 flex-col">
-      {/* Card fino: só o essencial. Configurações ficam no painel lateral. */}
-      <div className="flex h-8 shrink-0 items-center gap-2 rounded-t-xl border-b border-border bg-surface/70 px-2">
+      {/* Barra fina única sobre o projeto: só status, etapa e ações essenciais. */}
+      <div className="flex h-9 shrink-0 items-center gap-2 border-b border-border bg-surface px-3">
         <StatusDot status={previewStatus} />
         {projectKey && (
           <div className="relative min-w-0">
@@ -201,7 +201,7 @@ export function Preview() {
 
       <div
         ref={frameRef}
-        className="msk-scroll flex min-h-0 flex-1 items-stretch justify-center overflow-auto bg-background p-1"
+        className="msk-scroll flex min-h-0 flex-1 items-stretch justify-center overflow-auto bg-background"
       >
         {contextLoading ? (
           <EmptyState text="Conectando ao projeto ativo da extensão..." />
@@ -373,20 +373,10 @@ function DeviceMockup({
     );
   }
 
-  // MacBook
+  // Desktop — preview 100%, sem moldura: o site ocupa a tela inteira.
   return (
-    <div style={scale} className="flex h-full w-full flex-col items-center justify-start">
-      <div className="w-full max-w-[1280px] flex-1 rounded-t-[18px] bg-neutral-900 px-[12px] pb-[10px] pt-[22px] shadow-[0_30px_80px_-24px_rgba(0,0,0,0.9)] ring-1 ring-white/10">
-        <span className="pointer-events-none absolute" />
-        <div className="relative -mt-[16px] mb-[6px] flex h-[14px] items-center justify-center">
-          <span className="size-[5px] rounded-full bg-neutral-700 ring-1 ring-neutral-600" />
-        </div>
-        <div className="h-[calc(100%-4px)] overflow-hidden rounded-[6px] bg-black">{children}</div>
-      </div>
-      <div className="relative w-full max-w-[1400px]">
-        <div className="mx-auto h-[12px] w-full rounded-b-[10px] bg-gradient-to-b from-neutral-700 to-neutral-900 ring-1 ring-white/10" />
-        <div className="mx-auto h-[5px] w-[16%] rounded-b-[8px] bg-neutral-800" />
-      </div>
+    <div style={scale} className="size-full">
+      <div className="size-full overflow-hidden bg-black">{children}</div>
     </div>
   );
 }
