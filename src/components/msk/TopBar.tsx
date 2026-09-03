@@ -37,9 +37,12 @@ export function TopBar({ onPublish }: { onPublish: () => void }) {
   return (
     <header className="msk-glass sticky top-0 z-40 flex flex-wrap items-center gap-2 px-3 py-2 md:gap-3 md:px-4">
       <div className="flex items-center gap-2">
-        <div className="msk-neon-ring flex size-8 items-center justify-center rounded-lg bg-surface-raised">
-          <span className="msk-neon-text font-mono text-xs font-bold">MSK</span>
-        </div>
+        <img
+          src={mskLogo.url}
+          alt="MSK Agente"
+          className="msk-neon-ring size-9 rounded-full bg-background object-contain"
+        />
+        <div />
         <div className="leading-tight">
           <p className="text-sm font-semibold tracking-tight">MSK AGENTE</p>
           <p className="hidden text-[10px] uppercase tracking-[0.18em] text-muted-foreground sm:block">
