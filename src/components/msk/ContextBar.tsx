@@ -227,26 +227,43 @@ export function ContextBar({ onOpenTab }: { onOpenTab?: (tab: string) => void })
   );
 }
 
-function AmbiguityPicker() {
+function AmbiguityPicker({ hidden, onHide }: { hidden: string[]; onHide: (id: string) => void }) {
   const { resolution, setActiveProject } = useMsk();
+  const candidates = resolution.candidates.filter((c) => !hidden.includes(c.id));
+  if (candidates.length === 0) {
+    return <p className="text-muted-foreground">Nenhuma configuração restante.</p>;
+  }
   return (
     <div className="flex flex-wrap gap-1">
-      {resolution.candidates.map((c) => (
-        <button
+      {candidates.map((c) => (
+        <span
           key={c.id}
-          type="button"
-          onClick={() => setActiveProject(c.id)}
-          className="flex items-center gap-1 rounded-md border border-border px-2 py-1 text-foreground hover:bg-secondary"
+          className="flex items-center gap-1 rounded-md border border-border px-2 py-1 text-foreground"
         >
-          {c.name}
-          {c.branch && (
-            <span className="flex items-center gap-1 text-muted-foreground">
-              <GitBranch className="size-3" />
-              {c.branch}
-            </span>
-          )}
-        </button>
+          <button
+            type="button"
+            onClick={() => setActiveProject(c.id)}
+            className="flex items-center gap-1 hover:text-primary"
+          >
+            {c.name}
+            {c.branch && (
+              <span className="flex items-center gap-1 text-muted-foreground">
+                <GitBranch className="size-3" />
+                {c.branch}
+              </span>
+            )}
+          </button>
+          <button
+            type="button"
+            aria-label={`Remover ${c.name}`}
+            onClick={() => onHide(c.id)}
+            className="rounded p-0.5 text-muted-foreground hover:bg-secondary hover:text-foreground"
+          >
+            <X className="size-3" />
+          </button>
+        </span>
       ))}
     </div>
   );
+
 }
