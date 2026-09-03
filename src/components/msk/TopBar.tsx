@@ -23,7 +23,7 @@ const DEVICES: { key: Device; label: string; Icon: typeof Monitor }[] = [
   { key: "mobile", label: "Mobile", Icon: Smartphone },
 ];
 
-export function TopBar({ onPublish }: { onPublish: () => void }) {
+export function TopBar() {
   const {
     activeProject,
     github,
@@ -36,7 +36,6 @@ export function TopBar({ onPublish }: { onPublish: () => void }) {
   } = useMsk();
   const [bellOpen, setBellOpen] = useState(false);
   const unread = notifications.filter((n) => !n.read).length;
-  void onPublish;
 
   return (
     <header className="msk-glass sticky top-0 z-40 flex flex-wrap items-center gap-1.5 px-2.5 py-1.5 md:px-3">
