@@ -58,6 +58,13 @@ import {
   type GitHubState,
 } from "./services";
 
+export interface GithubRepoOption {
+  fullName: string;
+  private: boolean;
+  branch: string;
+  updatedAt: string | null;
+}
+
 interface MskState {
   backendConfigured: boolean;
   backendError: string | null;
