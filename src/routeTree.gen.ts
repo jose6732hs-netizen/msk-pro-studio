@@ -10,11 +10,17 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiEditorSplatRouteImport } from './routes/api/editor/$'
 import { Route as ApiLicenseStatusRouteImport } from './routes/api/license/status'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiEditorSplatRoute = ApiEditorSplatRouteImport.update({
+  id: '/api/editor/$',
+  path: '/api/editor/$',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiLicenseStatusRoute = ApiLicenseStatusRouteImport.update({
@@ -25,27 +31,31 @@ const ApiLicenseStatusRoute = ApiLicenseStatusRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/api/editor/$': typeof ApiEditorSplatRoute
   '/api/license/status': typeof ApiLicenseStatusRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/api/editor/$': typeof ApiEditorSplatRoute
   '/api/license/status': typeof ApiLicenseStatusRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/api/editor/$': typeof ApiEditorSplatRoute
   '/api/license/status': typeof ApiLicenseStatusRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/api/license/status'
+  fullPaths: '/' | '/api/editor/$' | '/api/license/status'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/api/license/status'
-  id: '__root__' | '/' | '/api/license/status'
+  to: '/' | '/api/editor/$' | '/api/license/status'
+  id: '__root__' | '/' | '/api/editor/$' | '/api/license/status'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ApiEditorSplatRoute: typeof ApiEditorSplatRoute
   ApiLicenseStatusRoute: typeof ApiLicenseStatusRoute
 }
 
@@ -56,6 +66,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/editor/$': {
+      id: '/api/editor/$'
+      path: '/api/editor/$'
+      fullPath: '/api/editor/$'
+      preLoaderRoute: typeof ApiEditorSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/license/status': {
@@ -70,6 +87,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ApiEditorSplatRoute: ApiEditorSplatRoute,
   ApiLicenseStatusRoute: ApiLicenseStatusRoute,
 }
 export const routeTree = rootRouteImport
