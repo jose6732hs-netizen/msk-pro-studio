@@ -76,6 +76,10 @@ interface MskState {
   notifications: MskNotification[];
   license: MskLicense | null;
   github: GitHubState;
+  connectGithub: () => void;
+  linkRepository: (repoFullName: string, branch?: string) => void;
+  connectProjectUrl: (url: string) => string | null;
+  extensionInstalled: boolean;
   tutorials: MskTutorial[];
   device: Device;
   setDevice: (d: Device) => void;
@@ -130,6 +134,7 @@ export function MskProvider({ children }: { children: ReactNode }) {
   const [activeContext, setActiveContext] = useState<ActiveContext>(EMPTY_CONTEXT);
   const [contextLoading, setContextLoading] = useState(false);
   const [contextDismissed, setContextDismissed] = useState(false);
+  const [extensionInstalled, setExtensionInstalled] = useState(false);
   const [syncStatus, setSyncStatus] = useState<ContextSyncStatus>({
     extension: "idle",
     project: "idle",
@@ -231,6 +236,23 @@ export function MskProvider({ children }: { children: ReactNode }) {
       MskEventBus.on(MSK_EVENTS.CONVERSATION_CHANGED, apply),
       MskEventBus.on(MSK_EVENTS.RUN_CHANGED, apply),
       MskEventBus.on(MSK_EVENTS.SKILLS_CHANGED, apply),
+      MskEventBus.on(MSK_EVENTS.GITHUB_CONNECTED, (payload) => {
+        setExtensionInstalled(true);
+        const repo =
+          (payload["repository"] as string) ??
+          (payload["githubRepoFull"] as string) ??
+          null;
+        setGithub((prev) => ({
+          connected: true,
+          user: (payload["user"] as string) ?? prev.user,
+          repository: repo ?? prev.repository,
+          branch: (payload["branch"] as string) ?? prev.branch,
+          last_commit: (payload["last_commit"] as string) ?? prev.last_commit,
+        }));
+        apply(payload);
+      }),
+      MskEventBus.on(MSK_EVENTS.EXTENSION_READY, () => setExtensionInstalled(true)),
+      MskEventBus.on(MSK_EVENTS.ACTIVE_CONTEXT_UPDATED, () => setExtensionInstalled(true)),
     ];
     return () => offs.forEach((off) => off());
   }, []);
@@ -501,6 +523,106 @@ export function MskProvider({ children }: { children: ReactNode }) {
     window.setTimeout(() => setPreviewStatus("synced"), 600);
   }, []);
 
+
+  /* ---- GitHub: mesma conexão da extensão (OAuth server-side) ---- */
+  const connectGithub = useCallback(() => {
+    // 1) pede à extensão para abrir o MESMO fluxo do popup oficial
+    sendToExtension(MSK_EVENTS.PANEL_GITHUB_CONNECT, { source: "panel" });
+    // 2) fallback: se a extensão não responder, o painel abre o OAuth server-side
+    window.setTimeout(() => {
+      if (extensionInstalled) return;
+      window.open(GitHubService.authorizeUrl(), "_blank", "noopener,noreferrer");
+    }, 900);
+  }, [extensionInstalled]);
+
+  /** Repositório escolhido no editor → aplica no projeto ativo e sincroniza na extensão. */
+  const linkRepository = useCallback(
+    (repoFullName: string, branch?: string) => {
+      const repo = repoFullName.trim().replace(/^https?:\/\/github\.com\//i, "").replace(/\.git$/i, "").replace(/\/$/, "");
+      if (!repo.includes("/")) return;
+      const nextBranch = branch?.trim() || activeProject?.branch || "main";
+      setGithub((prev) => ({ ...prev, connected: true, repository: repo, branch: nextBranch }));
+      setActiveContext((prev) => {
+        const merged = mergeContext(prev, {
+          ...prev,
+          githubOwner: repo.split("/")[0] ?? null,
+          githubRepo: repo.split("/")[1] ?? null,
+          githubRepoUrl: `https://github.com/${repo}`,
+          branch: nextBranch,
+          updatedAt: new Date().toISOString(),
+        } as ActiveContext);
+        persistContext(merged);
+        return merged;
+      });
+      if (activeProject) {
+        const updated = { ...activeProject, repository: repo, branch: nextBranch, updated_at: new Date().toISOString() };
+        setProjects(ProjectService.upsertLocal(updated));
+      }
+      sendToExtension(MSK_EVENTS.PANEL_REPOSITORY_SELECTED, { repository: repo, branch: nextBranch });
+    },
+    [activeProject],
+  );
+
+  /** Cola a URL do projeto (Lovable, preview ou domínio) → reflete no preview de verdade. */
+  const connectProjectUrl = useCallback(
+    (raw: string): string | null => {
+      const input = raw.trim();
+      if (!input) return null;
+      let parsed: URL;
+      try {
+        parsed = new URL(input.startsWith("http") ? input : `https://${input}`);
+      } catch {
+        return null;
+      }
+      const host = parsed.hostname;
+      const lovableId =
+        /lovable\.dev$/i.test(host) ? parsed.pathname.split("/").filter(Boolean).pop() ?? null : null;
+      const previewUrl = lovableId
+        ? `https://${lovableId}.lovableproject.com`
+        : parsed.origin + (parsed.pathname === "/" ? "" : parsed.pathname);
+      const name = lovableId ? `Projeto ${lovableId.slice(0, 8)}` : host;
+
+      const project: MskProject = {
+        id: uid(),
+        lovable_project_id: lovableId,
+        name,
+        lovable_url: lovableId ? `https://lovable.dev/projects/${lovableId}` : null,
+        preview_url: previewUrl,
+        production_url: /lovable\.app$/i.test(host) ? parsed.origin : null,
+        repository: activeProject?.repository ?? null,
+        branch: activeProject?.branch ?? "main",
+        updated_at: new Date().toISOString(),
+      };
+      const existing = projects.find(
+        (p) => (lovableId && p.lovable_project_id === lovableId) || p.preview_url === previewUrl,
+      );
+      const finalProject = existing ? { ...existing, ...project, id: existing.id } : project;
+      setProjects(ProjectService.upsertLocal(finalProject));
+      setActiveId(finalProject.id);
+      saveLocal("active_project_id", finalProject.id);
+      setActiveContext((prev) => {
+        const merged = mergeContext(prev, {
+          ...prev,
+          lovableProjectId: lovableId ?? prev.lovableProjectId,
+          lovableProjectName: name,
+          lovableUrl: finalProject.lovable_url,
+          previewUrl,
+          updatedAt: new Date().toISOString(),
+        } as ActiveContext);
+        persistContext(merged);
+        return merged;
+      });
+      setPreviewKey((k) => k + 1);
+      sendToExtension(MSK_EVENTS.PANEL_PROJECT_URL_SET, {
+        projectId: finalProject.id,
+        lovableProjectId: lovableId,
+        previewUrl,
+      });
+      return previewUrl;
+    },
+    [activeProject, projects],
+  );
+
   const value: MskState = {
     backendConfigured,
     backendError,
@@ -519,6 +641,10 @@ export function MskProvider({ children }: { children: ReactNode }) {
     notifications,
     license,
     github,
+    connectGithub,
+    linkRepository,
+    connectProjectUrl,
+    extensionInstalled,
     tutorials,
     device,
     setDevice,
