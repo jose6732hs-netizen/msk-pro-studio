@@ -288,6 +288,23 @@ function PanelInner() {
                 <div className="ml-auto flex shrink-0 items-center gap-1">
                   <button
                     type="button"
+                    onClick={() => void handleDownload()}
+                    disabled={!repoFull || downloading}
+                    title={
+                      repoFull
+                        ? `Baixar projeto (${repoFull})`
+                        : "Conecte um repositório para baixar o projeto"
+                    }
+                    className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground disabled:opacity-40"
+                  >
+                    {downloading ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      <Download className="size-4" />
+                    )}
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => void handleShare()}
                     title="Compartilhar link do projeto"
                     className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground"
