@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   Check,
+  Download,
   FolderGit2,
   History,
   Link2,
