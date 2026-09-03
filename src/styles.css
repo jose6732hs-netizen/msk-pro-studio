@@ -194,3 +194,6 @@
 @utility msk-sweep {
   animation: msk-sweep 1.6s linear infinite;
 }
+
+/* MSK: remover marca Lovable */
+#lovable-badge { display: none !important; }
