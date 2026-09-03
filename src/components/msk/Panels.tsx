@@ -426,7 +426,7 @@ function ConnectionCard({
   status: string;
   ok: boolean;
   lines: string[];
-  action?: { label: string; href: string };
+  action?: { label: string; href: string } | undefined;
 }) {
   return (
     <div className="msk-panel p-3">
