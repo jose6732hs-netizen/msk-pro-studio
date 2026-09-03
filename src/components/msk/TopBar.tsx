@@ -45,7 +45,7 @@ export function TopBar({ onPublish }: { onPublish: () => void }) {
 
   async function handleShare() {
     const url =
-      activeProject?.previewUrl ?? activeProject?.lovableUrl ?? window.location.href;
+      activeProject?.preview_url ?? activeProject?.lovable_url ?? window.location.href;
     try {
       if (navigator.share) await navigator.share({ title: activeProject?.name ?? "MSK", url });
       else await navigator.clipboard.writeText(url);
