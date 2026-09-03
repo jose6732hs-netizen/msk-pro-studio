@@ -359,7 +359,7 @@ function DeviceMockup({
               mobile ? "rounded-[39px] border-[8px] border-[#1a0204]" : tablet ? "rounded-[17px]" : ""
             }`}
           >
-            <span className={`${mobile ? "flex" : "hidden"} pointer-events-none absolute left-1/2 top-[8px] z-10 h-[24px] w-[88px] -translate-x-1/2 items-center justify-start rounded-full bg-black pl-[7px] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]`}>
+            <span className={`${mobile ? "flex" : "hidden"} pointer-events-none absolute left-1/2 top-[8px] z-10 h-[24px] w-[88px] -translate-x-1/2 items-center justify-end rounded-full bg-black pr-[7px] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]`}>
               <span className="relative size-[13px] rounded-full bg-[#0b0f1a] ring-1 ring-white/15">
                 <span className="absolute inset-[3px] rounded-full bg-[#12284a]" />
                 <span className="absolute left-[2px] top-[1px] size-[3px] rounded-full bg-white/70" />
