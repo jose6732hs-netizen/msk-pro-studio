@@ -1,24 +1,24 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { MskPanel } from "@/components/msk/PanelShell";
 
-// No head() here: the home route inherits title/description/og/twitter from
-// __root.tsx, and ships no og:image so serve-time hosting can inject the
-// project's social preview (explicit og:image or latest screenshot).
 export const Route = createFileRoute("/")({
-  component: Index,
+  head: () => ({
+    meta: [
+      { title: "MSK Agente — Painel Profissional de Edição" },
+      {
+        name: "description",
+        content:
+          "Central completa de edição MSK Agente: chat com o agente, preview real, projetos Lovable, repositórios GitHub, histórico e publicação.",
+      },
+      { property: "og:title", content: "MSK Agente — Painel Profissional" },
+      {
+        property: "og:description",
+        content:
+          "Edite seus projetos Lovable e repositórios GitHub em um painel profissional conectado ao MSK Agente.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+  }),
+  component: MskPanel,
 });
-
-// IMPORTANT: Replace this placeholder. See ./README.md for routing conventions.
-function Index() {
-  return (
-    <div
-      className="flex min-h-screen items-center justify-center"
-      style={{ backgroundColor: "#fcfbf8" }}
-    >
-      <img
-        data-lovable-blank-page-placeholder="REMOVE_THIS"
-        src="https://cdn.gpteng.co/blank-app-v1.svg"
-        alt="Your app will live here!"
-      />
-    </div>
-  );
-}
