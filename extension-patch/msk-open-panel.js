@@ -232,21 +232,21 @@
     bar.id = "msk-panel-bar";
     bar.style.cssText =
       "position:fixed;left:0;right:0;bottom:0;z-index:2147483000;display:flex;align-items:center;" +
-      "gap:8px;height:28px;padding:0 8px;box-sizing:border-box;background:#050705;" +
+      "gap:10px;height:40px;padding:0 10px;box-sizing:border-box;background:#050705;" +
       "border-top:1px solid #172a1b";
 
     const btn = document.createElement("button");
     btn.id = "msk-open-panel";
     btn.type = "button";
     btn.style.cssText =
-      "flex:0 0 auto;border:0;border-radius:6px;padding:4px 10px;font:700 10px/1 system-ui,sans-serif;" +
+      "flex:0 0 auto;border:0;border-radius:8px;padding:8px 16px;font:700 12px/1 system-ui,sans-serif;" +
       "letter-spacing:.04em;cursor:pointer";
     setOpen(btn);
 
     const clockEl = document.createElement("span");
     clockEl.id = "msk-license-clock";
     clockEl.style.cssText =
-      "margin-left:auto;font:600 10px/1 ui-monospace,monospace;letter-spacing:.03em;white-space:nowrap";
+      "margin-left:auto;font:700 12px/1 ui-monospace,monospace;letter-spacing:.03em;white-space:nowrap";
 
     bar.appendChild(btn);
     bar.appendChild(clockEl);
@@ -254,7 +254,7 @@
 
     // Não cobre o chat nem a área de mensagens.
     const pad = document.body.style.paddingBottom;
-    if (!pad || parseInt(pad, 10) < 28) document.body.style.paddingBottom = "28px";
+    if (!pad || parseInt(pad, 10) < 40) document.body.style.paddingBottom = "40px";
 
     void refresh(btn);
     paintClock(clockEl);
