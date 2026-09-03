@@ -286,11 +286,16 @@ export function Chat() {
             {sending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
           </button>
         </div>
-        {listening && (
-          <p className="mt-2 flex items-center gap-1.5 text-[11px] text-destructive">
-            <span className="size-1.5 animate-pulse rounded-full bg-destructive" />
-            Gravando… fale o comando e clique em parar para revisar antes de enviar.
-          </p>
+        {listening && streamRef.current && (
+          <div className="mt-2 overflow-hidden rounded-xl border border-destructive/40 bg-destructive/5">
+            <div className="flex items-center gap-2 px-3 pt-2">
+              <span className="size-1.5 animate-pulse rounded-full bg-destructive" />
+              <span className="text-[11px] font-medium text-destructive">
+                Ouvindo… o texto aparece na caixa acima enquanto você fala
+              </span>
+            </div>
+            <VoiceWave stream={streamRef.current} />
+          </div>
         )}
         {voiceError && <p className="mt-2 text-[11px] text-destructive">{voiceError}</p>}
         {!activeProject && (
