@@ -22,7 +22,7 @@ export class LicenseDeniedError extends Error {
 function clientToken(): string | null {
   if (typeof window === "undefined") return null;
   try {
-    const raw = window.localStorage.getItem("msk:session");
+    const raw = window.localStorage.getItem("msk.panel.session");
     if (!raw) return null;
     const parsed = JSON.parse(raw) as { access_token?: string | null };
     return parsed.access_token ?? null;
