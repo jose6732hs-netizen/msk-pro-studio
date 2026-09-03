@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as EditorRouteImport } from './routes/editor'
+import { Route as PainelProfissionalRouteImport } from './routes/painel-profissional'
 import { Route as ApiEditorSplatRouteImport } from './routes/api/editor/$'
 import { Route as ApiLicenseStatusRouteImport } from './routes/api/license/status'
 
@@ -22,6 +23,11 @@ const IndexRoute = IndexRouteImport.update({
 const EditorRoute = EditorRouteImport.update({
   id: '/editor',
   path: '/editor',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PainelProfissionalRoute = PainelProfissionalRouteImport.update({
+  id: '/painel-profissional',
+  path: '/painel-profissional',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiEditorSplatRoute = ApiEditorSplatRouteImport.update({
@@ -38,12 +44,14 @@ const ApiLicenseStatusRoute = ApiLicenseStatusRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/editor': typeof EditorRoute
+  '/painel-profissional': typeof PainelProfissionalRoute
   '/api/editor/$': typeof ApiEditorSplatRoute
   '/api/license/status': typeof ApiLicenseStatusRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/editor': typeof EditorRoute
+  '/painel-profissional': typeof PainelProfissionalRoute
   '/api/editor/$': typeof ApiEditorSplatRoute
   '/api/license/status': typeof ApiLicenseStatusRoute
 }
@@ -51,20 +59,38 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/editor': typeof EditorRoute
+  '/painel-profissional': typeof PainelProfissionalRoute
   '/api/editor/$': typeof ApiEditorSplatRoute
   '/api/license/status': typeof ApiLicenseStatusRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/editor' | '/api/editor/$' | '/api/license/status'
+  fullPaths:
+    | '/'
+    | '/editor'
+    | '/painel-profissional'
+    | '/api/editor/$'
+    | '/api/license/status'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/editor' | '/api/editor/$' | '/api/license/status'
-  id: '__root__' | '/' | '/editor' | '/api/editor/$' | '/api/license/status'
+  to:
+    | '/'
+    | '/editor'
+    | '/painel-profissional'
+    | '/api/editor/$'
+    | '/api/license/status'
+  id:
+    | '__root__'
+    | '/'
+    | '/editor'
+    | '/painel-profissional'
+    | '/api/editor/$'
+    | '/api/license/status'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   EditorRoute: typeof EditorRoute
+  PainelProfissionalRoute: typeof PainelProfissionalRoute
   ApiEditorSplatRoute: typeof ApiEditorSplatRoute
   ApiLicenseStatusRoute: typeof ApiLicenseStatusRoute
 }
@@ -83,6 +109,13 @@ declare module '@tanstack/react-router' {
       path: '/editor'
       fullPath: '/editor'
       preLoaderRoute: typeof EditorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/painel-profissional': {
+      id: '/painel-profissional'
+      path: '/painel-profissional'
+      fullPath: '/painel-profissional'
+      preLoaderRoute: typeof PainelProfissionalRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/editor/$': {
@@ -105,6 +138,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   EditorRoute: EditorRoute,
+  PainelProfissionalRoute: PainelProfissionalRoute,
   ApiEditorSplatRoute: ApiEditorSplatRoute,
   ApiLicenseStatusRoute: ApiLicenseStatusRoute,
 }
