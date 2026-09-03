@@ -46,16 +46,24 @@ export function Chat() {
     streamRef.current = null;
   };
 
-  // Transcrição por voz (ditado): o texto cai direto na caixa de comando.
-  function toggleDictation() {
+  // Transcrição por voz (ditado): o texto cai direto na caixa de comando,
+  // com ondas de áudio reagindo ao volume da voz em tempo real.
+  async function toggleDictation() {
     if (listening) {
       recRef.current?.stop();
+      stopStream();
       return;
     }
     const Ctor =
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!Ctor) {
       setVoiceError("Seu navegador não suporta transcrição por voz.");
+      return;
+    }
+    try {
+      streamRef.current = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch {
+      setVoiceError("É preciso liberar o microfone para transcrever por voz.");
       return;
     }
     const rec = new Ctor();
