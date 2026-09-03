@@ -14,7 +14,7 @@
   const EDITOR_URL = "https://msksystem.online/editor";
   const STATUS_URL = "https://msksystem.online/api/license/status";
   const PLANS_URL = "https://msksystem.online/planos";
-  const BAR_H = 64;
+  const BAR_H = 40;
 
   function linkedPayload(license) {
     return {
@@ -89,8 +89,8 @@
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
         const u = tab?.url ? new URL(tab.url) : null;
         const isHttp = u && /^https?:$/.test(u.protocol);
-        const isEditor = u && /(^|\.)lovable\.dev$/i.test(u.hostname);
-        const isPanel = u && /msk-pro-studio\.lovable\.app$/i.test(u.hostname);
+        const isEditor = u && /(^|\.)lovable\.dev$/.test(u.hostname);
+        const isPanel = u && /msk-pro-studio\.lovable\.app$/.test(u.hostname);
         if (isHttp && !isEditor && !isPanel) {
           ctx.previewUrl = u.origin + (u.pathname === "/" ? "" : u.pathname);
           if (!ctx.productionUrl && /^https:$/.test(u.protocol)) ctx.productionUrl = u.origin;
@@ -254,7 +254,7 @@
 
     // Não cobre o chat nem a área de mensagens.
     const pad = document.body.style.paddingBottom;
-    if (!pad || parseInt(pad, 10) < 40) document.body.style.paddingBottom = "40px";
+    if (!pad || parseInt(pad, 10) < BAR_H) document.body.style.paddingBottom = BAR_H + "px";
 
     void refresh(btn);
     paintClock(clockEl);
