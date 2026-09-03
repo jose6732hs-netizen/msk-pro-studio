@@ -20,7 +20,7 @@ import {
 import { LicenseStatusBadge } from "./License";
 
 import { useMsk } from "@/lib/msk/provider";
-import { BrandingService, GitHubService } from "@/lib/msk/services";
+import { BrandingService } from "@/lib/msk/services";
 import { formatRemaining, timeAgo, type MskProject } from "@/lib/msk/core";
 
 /* ------------------------------- Projetos -------------------------------- */
@@ -361,7 +361,9 @@ export function FilesPanel() {
 /* -------------------------------- Conexões -------------------------------- */
 
 export function ConnectionsPanel() {
-  const { github, activeProject, session, backendConfigured } = useMsk();
+  const { github, activeProject, session, backendConfigured, connectGithub, linkRepository } =
+    useMsk();
+  const [repoInput, setRepoInput] = useState("");
   const [brandingState, setBrandingState] = useState<string | null>(null);
 
   async function removeBranding() {
@@ -388,12 +390,38 @@ export function ConnectionsPanel() {
           `Branch: ${github.branch ?? activeProject?.branch ?? "—"}`,
           `Último commit: ${github.last_commit ?? "—"}`,
         ]}
-        action={
-          github.connected
-            ? undefined
-            : { label: "Conectar GitHub (OAuth)", href: GitHubService.authorizeUrl() }
-        }
+        action={{
+          label: github.connected ? "Reconectar GitHub pela extensão" : "Conectar GitHub",
+          onClick: connectGithub,
+        }}
       />
+
+      <div className="msk-panel p-3">
+        <p className="flex items-center gap-2 text-sm font-medium">
+          <Github className="size-4" /> Repositório do editor
+        </p>
+        <p className="mt-1 text-[11px] text-muted-foreground">
+          O repositório escolhido aqui é sincronizado com a extensão (e vice-versa).
+        </p>
+        <div className="mt-2 flex gap-1.5">
+          <input
+            value={repoInput}
+            onChange={(e) => setRepoInput(e.target.value)}
+            placeholder="owner/repositorio"
+            className="min-w-0 flex-1 rounded-md border border-border bg-background px-2 py-1.5 text-xs outline-none focus:border-primary"
+          />
+          <button
+            type="button"
+            onClick={() => {
+              linkRepository(repoInput);
+              setRepoInput("");
+            }}
+            className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+          >
+            Sincronizar
+          </button>
+        </div>
+      </div>
       <ConnectionCard
         icon={<Globe className="size-4" />}
         title="Lovable"
@@ -454,7 +482,7 @@ function ConnectionCard({
   status: string;
   ok: boolean;
   lines: string[];
-  action?: { label: string; href: string } | undefined;
+  action?: { label: string; href?: string; onClick?: () => void } | undefined;
 }) {
   return (
     <div className="msk-panel p-3">
@@ -474,14 +502,23 @@ function ConnectionCard({
           </p>
         ))}
       </div>
-      {action && (
-        <a
-          href={action.href}
-          className="mt-2 block rounded-md bg-secondary py-1.5 text-center text-xs hover:bg-secondary/80"
-        >
-          {action.label}
-        </a>
-      )}
+      {action &&
+        (action.onClick ? (
+          <button
+            type="button"
+            onClick={action.onClick}
+            className="mt-2 block w-full rounded-md bg-primary py-1.5 text-center text-xs font-medium text-primary-foreground hover:bg-primary/90"
+          >
+            {action.label}
+          </button>
+        ) : (
+          <a
+            href={action.href}
+            className="mt-2 block rounded-md bg-secondary py-1.5 text-center text-xs hover:bg-secondary/80"
+          >
+            {action.label}
+          </a>
+        ))}
     </div>
   );
 }
