@@ -59,7 +59,7 @@ export function Preview() {
 
       <div
         ref={frameRef}
-        className="msk-scroll flex min-h-0 flex-1 items-start justify-center overflow-auto bg-background p-4"
+        className="msk-scroll flex min-h-0 flex-1 items-stretch justify-center overflow-auto bg-background p-2"
       >
         {!activeProject ? (
           <EmptyState text="Selecione um projeto para carregar o preview real." />
