@@ -48,7 +48,14 @@ export function ContextBar({ onOpenTab }: { onOpenTab?: (tab: string) => void })
     reloadPreview,
   } = useMsk();
 
+  const [ambiguityClosed, setAmbiguityClosed] = useState(false);
+  const [hiddenCandidates, setHiddenCandidates] = useState<string[]>([]);
+  const hideCandidate = useCallback((id: string) => {
+    setHiddenCandidates((prev) => (prev.includes(id) ? prev : [...prev, id]));
+  }, []);
+
   const lovable = lovableUrlFor(activeProject, activeContext);
+
   const github = githubUrlFor(activeProject, activeContext);
   const branch = activeProject?.branch ?? activeContext.branch ?? null;
   const repo =
