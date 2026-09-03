@@ -183,8 +183,9 @@ export function contextToProject(ctx: ActiveContext): (Partial<MskProject> & { n
     ctx.githubOwner && ctx.githubRepo ? `${ctx.githubOwner}/${ctx.githubRepo}` : null;
   const name = ctx.lovableProjectName ?? repoFull ?? ctx.lovableProjectId;
   if (!name) return null;
+  const id = ctx.projectId ?? ctx.lovableProjectId;
   return {
-    id: ctx.projectId ?? ctx.lovableProjectId ?? undefined,
+    ...(id ? { id } : {}),
     lovable_project_id: ctx.lovableProjectId,
     name,
     lovable_url: ctx.lovableUrl,
