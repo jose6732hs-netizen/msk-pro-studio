@@ -34,34 +34,9 @@ export function TopBar({ onPublish }: { onPublish: () => void }) {
     reloadPreview,
     notifications,
   } = useMsk();
-  const { ensureActive } = useLicense();
   const [bellOpen, setBellOpen] = useState(false);
-  const [publishing, setPublishing] = useState(false);
-  const [shared, setShared] = useState(false);
-
-  async function handleShare() {
-    const url =
-      activeProject?.preview_url ?? activeProject?.lovable_url ?? window.location.href;
-    try {
-      if (navigator.share) await navigator.share({ title: activeProject?.name ?? "MSK", url });
-      else await navigator.clipboard.writeText(url);
-      setShared(true);
-      setTimeout(() => setShared(false), 1600);
-    } catch {
-      /* cancelado pelo usuário */
-    }
-  }
-
-  // Operação sensível: revalida a licença no SERVIDOR antes de publicar.
-  async function handlePublish() {
-    setPublishing(true);
-    try {
-      if (await ensureActive()) onPublish();
-    } finally {
-      setPublishing(false);
-    }
-  }
   const unread = notifications.filter((n) => !n.read).length;
+  void onPublish;
 
   return (
     <header className="msk-glass sticky top-0 z-40 flex flex-wrap items-center gap-1.5 px-2.5 py-1.5 md:px-3">
