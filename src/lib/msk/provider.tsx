@@ -361,7 +361,15 @@ export function MskProvider({ children }: { children: ReactNode }) {
     saveLocal("active_project_id", project.id);
   }, [activeContext]);
 
+  // Projeto/repositório vindos da extensão entram automaticamente no painel.
+  useEffect(() => {
+    if (resolution.status !== "unknown") return;
+    if (!activeContext.lovableProjectId && !activeContext.githubRepo) return;
+    registerContextProject();
+  }, [resolution.status, activeContext.lovableProjectId, activeContext.githubRepo, registerContextProject]);
+
   const dismissContextProject = useCallback(() => setContextDismissed(true), []);
+
 
   const retrySync = useCallback(() => {
     setSyncStatus((s) => ({ ...s, project: "syncing", message: null }));
