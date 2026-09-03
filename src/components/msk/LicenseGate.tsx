@@ -29,8 +29,8 @@ function Gated({ children }: { children: ReactNode }) {
     return (
       <LicenseExpiredScreen
         reason={r}
-        planName={raw && !raw.active ? raw.planName : null}
-        expiresAt={raw && !raw.active ? raw.expiresAt : null}
+        planName={raw && !raw.active ? (raw.planName ?? null) : null}
+        expiresAt={raw && !raw.active ? (raw.expiresAt ?? null) : null}
       >
         {(r === "UNAUTHENTICATED" || r === "LICENSE_NOT_FOUND") && (
           <AccessForm onDone={() => void refresh()} />
