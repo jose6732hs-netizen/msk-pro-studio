@@ -72,13 +72,30 @@ function PanelInner() {
     window.localStorage.setItem("msk.panel.chatCollapsed", collapsed ? "1" : "0");
   }, [width, collapsed]);
 
+  const [resizing, setResizing] = useState(false);
+
   const startResize = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
     event.preventDefault();
+    setResizing(true);
+    document.body.style.userSelect = "none";
+    document.body.style.cursor = "col-resize";
+    let last = 420;
     const onMove = (e: PointerEvent) => {
-      const next = window.innerWidth - e.clientX;
-      setWidth(Math.min(Math.max(next, 320), Math.min(900, window.innerWidth - 360)));
+      const raw = window.innerWidth - e.clientX;
+      const max = Math.max(360, Math.min(900, window.innerWidth - 320));
+      if (raw < 220) {
+        // arrastou para a borda direita: recolhe o chat
+        setCollapsed(true);
+        return;
+      }
+      setCollapsed(false);
+      last = Math.min(Math.max(raw, 320), max);
+      setWidth(last);
     };
     const onUp = () => {
+      setResizing(false);
+      document.body.style.userSelect = "";
+      document.body.style.cursor = "";
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
     };
