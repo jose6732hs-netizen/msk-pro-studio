@@ -97,35 +97,84 @@ function PanelInner() {
       )}
 
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
-        <aside className="msk-scroll hidden w-[380px] shrink-0 flex-col border-r border-border bg-sidebar lg:flex">
-          <nav className="flex flex-wrap gap-1 border-b border-border p-2">
-            {TABS.map(({ key, label, Icon }) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => setTab(key)}
-                aria-pressed={tab === key}
-                className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs transition-colors ${
-                  tab === key
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-                }`}
-              >
-                <Icon className="size-3.5" />
-                {label}
-              </button>
-            ))}
-          </nav>
-          <div className="msk-scroll min-h-0 flex-1 overflow-y-auto">
-            <TabContent tab={tab} />
-          </div>
-        </aside>
-
-        <main className="min-h-0 flex-1 p-3 md:p-4">
+        <main className="order-1 min-h-0 flex-1 p-3 md:p-4">
           <Preview />
         </main>
 
-        <div className="msk-scroll min-h-0 border-t border-border lg:hidden">
+        {!collapsed && (
+          <div
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Redimensionar chat"
+            onPointerDown={startResize}
+            onDoubleClick={() => setWidth(420)}
+            className="order-2 hidden w-1.5 shrink-0 cursor-col-resize bg-border transition-colors hover:bg-primary lg:block"
+          />
+        )}
+
+        <aside
+          className="msk-scroll order-3 hidden shrink-0 flex-col border-l border-border bg-sidebar lg:flex"
+          style={{ width: collapsed ? 52 : width }}
+        >
+          <div className="flex items-center gap-1 border-b border-border p-2">
+            <button
+              type="button"
+              onClick={() => setCollapsed((c) => !c)}
+              title={collapsed ? "Expandir chat" : "Recolher chat"}
+              className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground"
+            >
+              {collapsed ? (
+                <PanelLeftOpen className="size-4" />
+              ) : (
+                <PanelRightOpen className="size-4" />
+              )}
+            </button>
+            {!collapsed && (
+              <nav className="flex flex-wrap gap-1">
+                {TABS.map(({ key, label, Icon }) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setTab(key)}
+                    aria-pressed={tab === key}
+                    className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs transition-colors ${
+                      tab === key
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                    }`}
+                  >
+                    <Icon className="size-3.5" />
+                    {label}
+                  </button>
+                ))}
+              </nav>
+            )}
+          </div>
+          {collapsed ? (
+            <div className="flex flex-col items-center gap-1 p-1">
+              {TABS.map(({ key, label, Icon }) => (
+                <button
+                  key={key}
+                  type="button"
+                  title={label}
+                  onClick={() => {
+                    setTab(key);
+                    setCollapsed(false);
+                  }}
+                  className="rounded-md p-2 text-muted-foreground hover:bg-secondary hover:text-foreground"
+                >
+                  <Icon className="size-4" />
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="msk-scroll flex min-h-0 flex-1 flex-col overflow-y-auto">
+              <TabContent tab={tab} />
+            </div>
+          )}
+        </aside>
+
+        <div className="msk-scroll order-4 min-h-0 border-t border-border lg:hidden">
           <nav className="msk-scroll flex gap-1 overflow-x-auto border-b border-border p-2">
             {TABS.map(({ key, label, Icon }) => (
               <button
@@ -144,11 +193,12 @@ function PanelInner() {
               </button>
             ))}
           </nav>
-          <div className="p-3">
+          <div className="flex min-h-[60vh] flex-col p-3">
             <TabContent tab={tab} />
           </div>
         </div>
       </div>
+
 
       <footer className="flex items-center justify-center gap-2 border-t border-border px-4 py-3 text-[11px] text-muted-foreground">
         <img src={mskLogo.url} alt="" className="size-5 rounded-full" />
