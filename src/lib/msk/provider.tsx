@@ -86,6 +86,7 @@ interface MskState {
   resolution: ProjectResolution;
   preview: ResolvedPreview;
   contextLoading: boolean;
+  contextDismissed: boolean;
   registerContextProject: () => void;
   dismissContextProject: () => void;
   retrySync: () => void;
@@ -515,6 +516,7 @@ export function MskProvider({ children }: { children: ReactNode }) {
     resolution,
     preview,
     contextLoading,
+    contextDismissed,
     registerContextProject,
     dismissContextProject,
     retrySync,
