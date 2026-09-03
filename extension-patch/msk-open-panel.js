@@ -82,6 +82,28 @@
         /* sem permissão de tabs: segue sem fallback */
       }
     }
+    // fallback 2: qualquer link de projeto aberto no PC (localhost, domínio próprio,
+    // preview publicado etc.) deve refletir no preview do painel
+    if (!ctx.previewUrl) {
+      try {
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        const u = tab?.url ? new URL(tab.url) : null;
+        if (
+          u &&
+          /^https?:$/.test(u.protocol) &&
+          !/lovable\.dev$/i.test(u.hostname) && // editor Lovable não é preview
+          !/lovable\.app$/i.test(u.hostname) || // painel publicado... (tratado abaixo)
+          (u && u.hostname === "localhost")
+        ) {
+          // aceita qualquer origem http(s) como preview, exceto a própria página do editor
+          if (!/lovable\.dev$/i.test(u.hostname)) {
+            ctx.previewUrl = u.origin + (u.pathname === "/" ? "" : u.pathname);
+          }
+        }
+      } catch (e) {
+        /* sem permissão de tabs: segue sem fallback */
+      }
+    }
     const hasAny = Object.values(ctx).some(
       (v, i) => i < 12 && typeof v === "string" && v.length > 0,
     );
