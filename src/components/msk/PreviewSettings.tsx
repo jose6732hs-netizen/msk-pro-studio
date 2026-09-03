@@ -46,7 +46,7 @@ export function PreviewSettingsPanel() {
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    const done = connectProjectUrl(urlInput);
+    const done = Boolean(connectProjectUrl(urlInput));
     setError(done ? null : "URL inválida");
     setOk(done);
     if (done) setUrlInput("");
