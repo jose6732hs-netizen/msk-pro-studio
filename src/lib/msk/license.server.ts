@@ -47,6 +47,9 @@ interface LicenseRow {
   plan?: string | null;
   plan_name?: string | null;
   status?: string | null;
+  limits?: unknown;
+  usage?: unknown;
+  plan_limits?: unknown;
   starts_at?: string | null;
   created_at?: string | null;
   expires_at?: string | null;
@@ -128,6 +131,17 @@ export async function getActiveLicenseForUser(
   return decideLicense(row, serverNow);
 }
 
+/** Normaliza colunas jsonb de limites/uso; ignora qualquer valor não numérico. */
+function metrics(value: unknown): LicenseMetrics {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const out: Record<string, number> = {};
+  for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+    const n = typeof v === "number" ? v : Number(v);
+    if (Number.isFinite(n)) out[k] = n;
+  }
+  return Object.keys(out).length ? out : null;
+}
+
 /** Decide ativo/inativo a partir da linha da licença, sempre com o relógio do servidor. */
 function decideLicense(row: LicenseRow, serverNow: string): LicenseResult {
   const planName = row.plan_name ?? row.plan ?? "MSK Agente";
@@ -155,6 +169,8 @@ function decideLicense(row: LicenseRow, serverNow: string): LicenseResult {
     expiresAt,
     serverNow,
     remainingSeconds: Math.floor((end - now) / 1000),
+    limits: metrics(row.limits ?? row.plan_limits),
+    usage: metrics(row.usage),
   };
 }
 
