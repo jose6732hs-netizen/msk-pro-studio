@@ -134,7 +134,7 @@ function PanelInner() {
   }, [onDrop]);
 
   return (
-    <div className="flex min-h-screen flex-col bg-background text-foreground">
+    <div className="flex h-screen min-h-screen flex-col overflow-hidden bg-background text-foreground">
       <TopBar onPublish={() => setPublishing(true)} />
 
       {!backendConfigured && (
