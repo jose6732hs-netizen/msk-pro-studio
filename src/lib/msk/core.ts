@@ -133,7 +133,36 @@ export const MSK_BACKEND = {
   api: env["VITE_MSK_API_URL"] ?? "https://msksystem.online",
 };
 
-export const backendConfigured = Boolean(MSK_BACKEND.url && MSK_BACKEND.anonKey);
+// Live binding: atualizado após hidratar a configuração pública vinda do servidor.
+export let backendConfigured = Boolean(MSK_BACKEND.url && MSK_BACKEND.anonKey);
+
+let hydration: Promise<boolean> | null = null;
+
+/**
+ * Busca no servidor a configuração PÚBLICA do backend MSK (URL + chave publicável).
+ * Nenhum segredo trafega: a chave anon é pública por definição e o RLS continua valendo.
+ */
+export function hydrateBackendConfig(): Promise<boolean> {
+  if (backendConfigured) return Promise.resolve(true);
+  if (hydration) return hydration;
+  hydration = (async () => {
+    try {
+      const res = await fetch("/api/msk/config");
+      if (!res.ok) return false;
+      const data = (await res.json()) as { url?: string; anonKey?: string; api?: string };
+      if (!data?.url || !data?.anonKey) return false;
+      MSK_BACKEND.url = data.url;
+      MSK_BACKEND.anonKey = data.anonKey;
+      if (data.api) MSK_BACKEND.api = data.api;
+      backendConfigured = true;
+      return true;
+    } catch {
+      return false;
+    }
+  })();
+  return hydration;
+}
+
 
 export class NotConnectedError extends Error {
   constructor(what = "Backend MSK") {

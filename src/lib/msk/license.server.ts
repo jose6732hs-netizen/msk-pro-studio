@@ -103,6 +103,39 @@ function reasonForStatus(status: string): LicenseReason | null {
   return "LICENSE_EXPIRED";
 }
 
+/** Endpoint oficial do MSK System — mesma autoridade usada pelo popup da extensão. */
+const MSK_SYSTEM = (process.env["MSK_SYSTEM_URL"] ?? "https://msksystem.online").replace(/\/+$/, "");
+
+/** Lê o plano do usuário no backend MSK (tabela `plans`). Nunca expõe segredos. */
+async function planRowForUser(userId: string, token: string | null): Promise<LicenseRow | null> {
+  const { url, anonKey, serviceKey, configured } = backend();
+  if (!configured) return null;
+  const key = serviceKey || anonKey;
+  const auth = serviceKey ? serviceKey : token || anonKey;
+  const query = `select=*&user_id=eq.${encodeURIComponent(userId)}&limit=1`;
+  const res = await fetch(`${url}/rest/v1/plans?${query}`, {
+    headers: { apikey: key, Authorization: `Bearer ${auth}` },
+  });
+  if (!res.ok) return null;
+  const rows = (await res.json()) as Array<Record<string, unknown>>;
+  const row = rows[0];
+  if (!row) return null;
+  const limits = metrics({
+    execucoes_mes: row["monthly_run_limit"],
+    tokens_mes: row["monthly_token_limit"],
+    deploys: row["deploy_limit"],
+  });
+  return {
+    id: null,
+    user_id: userId,
+    plan_name: typeof row["tier"] === "string" ? String(row["tier"]).toUpperCase() : null,
+    status: typeof row["status"] === "string" ? row["status"] : null,
+    starts_at: (row["starts_at"] as string) ?? (row["created_at"] as string) ?? null,
+    expires_at: (row["ends_at"] as string) ?? (row["valid_until"] as string) ?? null,
+    limits,
+  };
+}
+
 /**
  * Fonte única: devolve a licença efetiva do usuário conforme o horário do servidor.
  * `token` é o token de sessão já validado — usado para respeitar RLS quando não há
@@ -112,22 +145,12 @@ export async function getActiveLicenseForUser(
   userId: string,
   token: string | null,
 ): Promise<LicenseResult> {
-  const { url, anonKey, serviceKey, configured } = backend();
+  const { configured } = backend();
   const serverNow = new Date().toISOString();
   if (!configured) return { active: false, reason: "BACKEND_NOT_CONFIGURED", serverNow };
 
-  const key = serviceKey || anonKey;
-  const auth = serviceKey ? serviceKey : token || anonKey;
-  const query = `select=*&user_id=eq.${encodeURIComponent(userId)}&order=expires_at.desc&limit=1`;
-  const res = await fetch(`${url}/rest/v1/licenses?${query}`, {
-    headers: { apikey: key, Authorization: `Bearer ${auth}` },
-  });
-  if (!res.ok) return { active: false, reason: "LICENSE_NOT_FOUND", serverNow };
-
-  const rows = (await res.json()) as LicenseRow[];
-  const row = rows[0];
+  const row = await planRowForUser(userId, token);
   if (!row) return { active: false, reason: "LICENSE_NOT_FOUND", serverNow };
-
   return decideLicense(row, serverNow);
 }
 
@@ -175,37 +198,63 @@ function decideLicense(row: LicenseRow, serverNow: string): LicenseResult {
 }
 
 /**
- * Licença validada por CHAVE + E-MAIL (mesmo par usado no popup da extensão).
- * A chave nunca é devolvida ao frontend; só o resultado seguro.
+ * Licença validada por CHAVE + E-MAIL — exatamente o mesmo validador oficial usado
+ * pelo popup da extensão (`/api/extension/license-identity`). A chave nunca é
+ * devolvida ao frontend; só o resultado seguro.
  */
 export async function getLicenseByKey(email: string, key: string): Promise<LicenseResult> {
-  const { url, anonKey, serviceKey, configured } = backend();
   const serverNow = new Date().toISOString();
-  if (!configured) return { active: false, reason: "BACKEND_NOT_CONFIGURED", serverNow };
   const mail = email.trim().toLowerCase();
   const licenseKey = key.trim();
   if (!mail || !licenseKey) return { active: false, reason: "UNAUTHENTICATED", serverNow };
 
-  const apiKey = serviceKey || anonKey;
-  const columns = ["token", "license_key", "key", "code"];
-  let row: LicenseRow | undefined;
-  for (const column of columns) {
-    const query =
-      `select=*&email=eq.${encodeURIComponent(mail)}` +
-      `&${column}=eq.${encodeURIComponent(licenseKey)}&order=expires_at.desc&limit=1`;
-    const res = await fetch(`${url}/rest/v1/licenses?${query}`, {
-      headers: { apikey: apiKey, Authorization: `Bearer ${apiKey}` },
+  let data: {
+    ok?: boolean;
+    active?: boolean;
+    user_id?: string | null;
+    license_id?: string | null;
+    status?: string | null;
+    expires_at?: string | null;
+    code?: string | null;
+  };
+  try {
+    const res = await fetch(`${MSK_SYSTEM}/api/extension/license-identity`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${licenseKey}`, "content-type": "application/json" },
+      body: JSON.stringify({ email: mail }),
     });
-    if (!res.ok) continue; // coluna inexistente neste schema: tenta a próxima
-    const rows = (await res.json()) as LicenseRow[];
-    if (rows[0]) {
-      row = rows[0];
-      break;
-    }
+    data = (await res.json()) as typeof data;
+  } catch {
+    return { active: false, reason: "LICENSE_NOT_FOUND", serverNow };
   }
-  if (!row) return { active: false, reason: "LICENSE_NOT_FOUND", serverNow };
+
+  if (!data?.ok || !data?.active) {
+    const code = String(data?.code ?? "");
+    const reason: LicenseReason =
+      code === "LICENSE_EMAIL_MISMATCH" || code === "LICENSE_REQUIRED"
+        ? "UNAUTHENTICATED"
+        : code === "INSTALLATION_BLOCKED"
+          ? "LICENSE_SUSPENDED"
+          : data?.expires_at
+            ? "LICENSE_EXPIRED"
+            : "LICENSE_NOT_FOUND";
+    return { active: false, reason, expiresAt: data?.expires_at ?? null, serverNow };
+  }
+
+  // Licença confirmada pelo MSK System. Plano/limites vêm do backend quando existirem.
+  const plan = data.user_id ? await planRowForUser(String(data.user_id), null) : null;
+  const row: LicenseRow = {
+    id: data.license_id ?? null,
+    user_id: data.user_id ?? null,
+    plan_name: plan?.plan_name ?? "MSK Agente",
+    status: data.status ?? "active",
+    starts_at: plan?.starts_at ?? null,
+    expires_at: data.expires_at ?? plan?.expires_at ?? null,
+    limits: plan?.limits ?? null,
+  };
   return decideLicense(row, serverNow);
 }
+
 
 /** Faz login por e-mail e senha no backend MSK e devolve o token de sessão do próprio usuário. */
 export async function signInWithPassword(
