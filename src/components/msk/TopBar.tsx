@@ -127,7 +127,10 @@ export function TopBar({ onPublish }: { onPublish: () => void }) {
         </span>
       </a>
 
+      <ExtensionBadge />
+
       <LicenseCountdown />
+
 
       <div className="relative">
         <button
