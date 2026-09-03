@@ -1,3 +1,4 @@
+import { MSK_EVENTS, MskEventBus } from "./bridge";
 import {
   createContext,
   useCallback,
@@ -141,6 +142,27 @@ export function MskProvider({ children }: { children: ReactNode }) {
     busRef.current = bus as never;
     return () => bus.close();
   }, []);
+
+  /* ---- MSK Bridge: projeto detectado pela extensão na Lovable ---- */
+  useEffect(() => {
+    const off = MskEventBus.on(MSK_EVENTS.ACTIVE_PROJECT_CHANGED, (payload) => {
+      const lovableId = (payload["lovableProjectId"] as string) ?? null;
+      if (!lovableId) return;
+      setProjects((prev) => {
+        const match = prev.find((p) => p.lovable_project_id === lovableId);
+        if (match) {
+          setActiveId(match.id);
+          saveLocal("active_project_id", match.id);
+        }
+        return prev;
+      });
+    });
+    return () => {
+      off();
+    };
+  }, []);
+
+
 
   /* ---- Carga inicial ---- */
   useEffect(() => {
