@@ -14,6 +14,7 @@ import {
   emptySession,
   loadLocal,
   readHandoff,
+  readHandoffProjects,
   saveLocal,
   uid,
   type Device,
