@@ -1,6 +1,16 @@
-import { ExternalLink, Maximize2, Minus, Plus, RefreshCw, ScanLine } from "lucide-react";
+import {
+  ExternalLink,
+  Globe,
+  Maximize2,
+  Minus,
+  Plus,
+  RefreshCw,
+  ScanLine,
+  X,
+} from "lucide-react";
 import type React from "react";
-import { useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { loadLocal, saveLocal } from "@/lib/msk/core";
 import { githubUrlFor, lovableUrlFor } from "@/lib/msk/active-context";
 import { useMsk } from "@/lib/msk/provider";
 import { PreviewService } from "@/lib/msk/services";
@@ -25,6 +35,27 @@ export function Preview() {
   const lovable = lovableUrlFor(activeProject, activeContext);
   const github = githubUrlFor(activeProject, activeContext);
   const width = DEVICE_WIDTH[device];
+  const production = activeProject?.production_url ?? activeContext.productionUrl ?? null;
+
+  /* Rotas/etapas do site (ex.: /, /admin, /land) por projeto */
+  const routeKey = `routes:${activeProject?.id ?? activeContext.lovableProjectId ?? "default"}`;
+  const [routes, setRoutes] = useState<string[]>(DEFAULT_ROUTES);
+  const [path, setPath] = useState("/");
+  const [newRoute, setNewRoute] = useState("");
+
+  useEffect(() => {
+    const saved = loadLocal<string[]>(routeKey, []);
+    setRoutes(saved.length ? saved : DEFAULT_ROUTES);
+    setPath("/");
+  }, [routeKey]);
+
+  const applyRoutes = (next: string[]) => {
+    const unique = Array.from(new Set(next.map(normalizePath)));
+    setRoutes(unique);
+    saveLocal(routeKey, unique);
+  };
+
+  const fullUrl = useMemo(() => (url ? joinPath(url, path) : null), [url, path]);
 
   return (
     <section className="flex min-h-0 flex-1 flex-col">
@@ -57,9 +88,19 @@ export function Preview() {
           <IconBtn label="Recarregar preview" onClick={reloadPreview}>
             <RefreshCw className="size-3.5" />
           </IconBtn>
+          {production && (
+            <a
+              href={production}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-1 rounded-md bg-primary px-2 py-1 text-[11px] font-semibold text-primary-foreground"
+            >
+              <Globe className="size-3" /> Ver no ar
+            </a>
+          )}
           {url && (
             <a
-              href={url}
+              href={fullUrl ?? url}
               target="_blank"
               rel="noreferrer"
               aria-label="Abrir preview em nova aba"
@@ -69,6 +110,54 @@ export function Preview() {
             </a>
           )}
         </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-1 border-b border-border px-3 py-1.5">
+        <span className="mr-1 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+          Etapas
+        </span>
+        {routes.map((r) => (
+          <span
+            key={r}
+            className={`group flex items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] transition-colors ${
+              path === r
+                ? "border-primary bg-primary text-primary-foreground"
+                : "border-border text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <button type="button" onClick={() => setPath(r)} className="font-mono">
+              {r}
+            </button>
+            {r !== "/" && (
+              <button
+                type="button"
+                aria-label={`Remover ${r}`}
+                onClick={() => applyRoutes(routes.filter((x) => x !== r))}
+                className="opacity-0 transition-opacity group-hover:opacity-100"
+              >
+                <X className="size-3" />
+              </button>
+            )}
+          </span>
+        ))}
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!newRoute.trim()) return;
+            const value = normalizePath(newRoute);
+            applyRoutes([...routes, value]);
+            setPath(value);
+            setNewRoute("");
+          }}
+        >
+          <input
+            value={newRoute}
+            onChange={(e) => setNewRoute(e.target.value)}
+            placeholder="/nova-rota"
+            aria-label="Adicionar rota do projeto"
+            className="w-28 rounded-md border border-border bg-background px-2 py-0.5 font-mono text-[11px] text-foreground outline-none placeholder:text-muted-foreground focus:border-primary"
+          />
+        </form>
       </div>
 
       <div
@@ -103,7 +192,7 @@ export function Preview() {
           >
             <iframe
               key={`${previewKey}-${activeProject?.id ?? "ctx"}-${url}`}
-              src={PreviewService.bust(url)}
+              src={PreviewService.bust(fullUrl ?? url)}
               title={`Preview de ${activeProject?.name ?? activeContext.lovableProjectName ?? "projeto ativo"}`}
               className="size-full border-0 bg-white"
               sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
@@ -169,4 +258,22 @@ function ActionLink({ children, href }: { children: React.ReactNode; href: strin
       {children}
     </a>
   );
+}
+
+const DEFAULT_ROUTES = ["/", "/admin", "/login", "/dashboard"];
+
+function normalizePath(value: string): string {
+  const trimmed = value.trim().replace(/\s+/g, "");
+  if (!trimmed || trimmed === "/") return "/";
+  return ("/" + trimmed.replace(/^\/+/, "")).replace(/\/+$/, "") || "/";
+}
+
+function joinPath(base: string, path: string): string {
+  try {
+    const u = new URL(base);
+    u.pathname = path === "/" ? "/" : path;
+    return u.toString();
+  } catch {
+    return base;
+  }
 }
