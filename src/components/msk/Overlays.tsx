@@ -54,7 +54,7 @@ export function AttachmentReceipt({
 export function NotificationsPopover({ onClose }: { onClose: () => void }) {
   const { notifications, session, backendConfigured } = useMsk();
   return (
-    <div className="msk-glass absolute right-0 top-full z-50 mt-2 w-80 rounded-xl p-2">
+    <div className="absolute right-0 top-full z-50 mt-2 w-80 rounded-xl border border-border bg-surface p-2 shadow-2xl">
       <div className="flex items-center justify-between px-2 py-1">
         <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
           Notificações
