@@ -154,11 +154,11 @@
 
 @utility msk-neon-text {
   color: var(--neon);
-  text-shadow: 0 0 14px oklch(0.84 0.21 148 / 35%);
+  text-shadow: 0 0 14px oklch(0.87 0.26 143 / 35%);
 }
 
 @utility msk-neon-ring {
-  box-shadow: 0 0 0 1px oklch(0.84 0.21 148 / 45%), 0 0 22px oklch(0.84 0.21 148 / 18%);
+  box-shadow: 0 0 0 1px oklch(0.87 0.26 143 / 45%), 0 0 22px oklch(0.87 0.26 143 / 18%);
 }
 
 @utility msk-scroll {
