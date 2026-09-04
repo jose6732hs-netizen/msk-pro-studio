@@ -194,7 +194,7 @@ function Preview({ content, isUpdating, updateError, onRetry }: PreviewProps) {
         <div className="flex items-center gap-1">
           <button
             onClick={handleZoomOut}
-            className="rounded p-1 text-violet-500 transition-colors hover:bg-violet-800/50 hover:text-violet-300"
+            className="rounded p-1 text-violet-500 transition-colors hover:bg-violet-800/50 hover:text-violet-300 disabled:opacity-50"
             aria-label="Diminuir zoom"
             disabled={zoom <= 50}
           >
@@ -203,7 +203,7 @@ function Preview({ content, isUpdating, updateError, onRetry }: PreviewProps) {
           <span className="min-w-[3rem] text-center text-xs text-violet-400">{zoom}%</span>
           <button
             onClick={handleZoomIn}
-            className="rounded p-1 text-violet-500 transition-colors hover:bg-violet-800/50 hover:text-violet-300"
+            className="rounded p-1 text-violet-500 transition-colors hover:bg-violet-800/50 hover:text-violet-300 disabled:opacity-50"
             aria-label="Aumentar zoom"
             disabled={zoom >= 200}
           >
@@ -241,22 +241,25 @@ function Preview({ content, isUpdating, updateError, onRetry }: PreviewProps) {
       {/* Preview Content */}
       <div
         ref={containerRef}
-        className="flex-1 overflow-auto p-4"
-        style={{ maxHeight: isExpanded ? "none" : "400px" }}
+        className={`flex-1 overflow-auto p-4 ${isExpanded ? "max-h-none" : "max-h-96"}`}
       >
-        {content && (
+        {content ? (
           <div
             className="mx-auto transition-transform duration-200"
             style={{
-              transform: `scale(${zoom / 100})`,
-              transformOrigin: "top center",
+              width: `${zoom}%`,
+              transformOrigin: "top left",
             }}
           >
-            {/* Render content based on type */}
-            <div
-              className="prose prose-invert prose-violet max-w-none"
-              dangerouslySetInnerHTML={{ __html: content }}
+            <img
+              src={content}
+              alt="Prévia do documento"
+              className="max-w-full rounded-lg shadow-lg"
             />
+          </div>
+        ) : (
+          <div className="flex h-64 items-center justify-center">
+            <Loader2 className="size-8 animate-spin text-violet-500" />
           </div>
         )}
       </div>
@@ -266,450 +269,84 @@ function Preview({ content, isUpdating, updateError, onRetry }: PreviewProps) {
 
 // ─── Attachment Preview ───
 interface AttachmentPreviewProps {
-  file: Attachment;
-  onRemove: (id: string) => void;
-  onPreviewUpdate: (id: string) => Promise<void>;
+  attachment: Attachment;
+  onRemove: () => void;
 }
 
-function AttachmentPreview({ file, onRemove, onPreviewUpdate }: AttachmentPreviewProps) {
-  const [isUpdating, setIsUpdating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const previewRef = useRef<HTMLDivElement>(null);
-
-  const handlePreviewUpdate = useCallback(async () => {
-    if (file.status !== "ready") return;
-    
-    setIsUpdating(true);
-    setError(null);
-    
-    try {
-      await onPreviewUpdate(file.id);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Erro desconhecido";
-      setError(message);
-    } finally {
-      setIsUpdating(false);
-    }
-  }, [file.id, file.status, onPreviewUpdate]);
-
-  const fileTypeIcon = useMemo(() => {
-    const type = file.type.toLowerCase();
-    if (type.startsWith("image/")) return Image;
-    if (type.includes("pdf")) return FileText;
-    return Paperclip;
-  }, [file.type]);
-
-  const Icon = fileTypeIcon;
+function AttachmentPreview({ attachment, onRemove }: AttachmentPreviewProps) {
+  const isImage = attachment.type?.startsWith("image/");
+  const isUploading = attachment.status === "uploading";
+  const isError = attachment.status === "error";
 
   return (
-    <div className="group relative rounded-lg border border-violet-700/40 bg-violet-900/40 p-3 transition-all hover:border-violet-600/60">
-      <div className="flex items-start gap-3">
-        <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-violet-800/50">
-          <Icon className="size-5 text-violet-400" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium text-white">{file.name}</p>
-          <p className="text-xs text-violet-500">
-            {(file.size / 1024 / 1024).toFixed(2)} MB
-          </p>
-          <div className="mt-2 flex items-center gap-2">
-            {file.status === "uploading" && (
-              <span className="flex items-center gap-1 text-xs text-violet-400">
-                <Loader2 className="size-3 animate-spin" />
-                Enviando...
-              </span>
-            )}
-            {file.status === "ready" && (
-              <span className="flex items-center gap-1 text-xs text-emerald-400">
-                <CheckCircle2 className="size-3" />
-                Pronto
-              </span>
-            )}
-            {file.status === "error" && (
-              <span className="flex items-center gap-1 text-xs text-red-400">
-                <TriangleAlert className="size-3" />
-                Erro no upload
-              </span>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* File Actions */}
-      <div className="absolute right-2 top-2 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-        {file.status === "ready" && (
-          <button
-            onClick={handlePreviewUpdate}
-            disabled={isUpdating}
-            className="rounded bg-violet-800/80 p-1.5 text-violet-400 transition-colors hover:bg-violet-700 hover:text-violet-200 disabled:cursor-not-allowed disabled:opacity-50"
-            aria-label="Atualizar prévia"
-            title="Atualizar prévia"
-          >
-            <RotateCcw className={`size-3 ${isUpdating ? "animate-spin" : ""}`} />
-          </button>
+    <div className="group relative inline-flex items-center gap-2 rounded-lg border bg-violet-900/40 px-3 py-2">
+      {isImage && attachment.url ? (
+        <img
+          src={attachment.url}
+          alt={attachment.name}
+          className="size-8 rounded object-cover"
+        />
+      ) : (
+        <FileText className="size-4 text-violet-400" />
+      )}
+      <div className="flex flex-col">
+        <span className="max-w-[120px] truncate text-xs text-violet-200">
+          {attachment.name}
+        </span>
+        {isUploading && (
+          <span className="flex items-center gap-1 text-[10px] text-violet-500">
+            <Loader2 className="size-2.5 animate-spin" />
+            Enviando...
+          </span>
         )}
+        {isError && (
+          <span className="flex items-center gap-1 text-[10px] text-red-400">
+            <AlertCircle className="size-2.5" />
+            Erro
+          </span>
+        )}
+      </div>
+      {!isUploading && (
         <button
-          onClick={() => onRemove(file.id)}
-          className="rounded bg-red-900/80 p-1.5 text-red-400 transition-colors hover:bg-red-800 hover:text-red-200"
-          aria-label="Remover arquivo"
-          title="Remover"
+          onClick={onRemove}
+          className="absolute -right-1 -top-1 flex size-4 items-center justify-center rounded-full bg-red-600 text-white opacity-0 transition-opacity group-hover:opacity-100"
+          aria-label="Remover anexo"
         >
-          <Trash2 className="size-3" />
+          <X className="size-2.5" />
         </button>
-      </div>
-
-      {/* Preview Error */}
-      {error && (
-        <div className="mt-2 rounded bg-red-950/60 p-2">
-          <p className="text-xs text-red-400">{error}</p>
-          <button
-            onClick={handlePreviewUpdate}
-            className="mt-1 text-xs text-violet-400 underline transition-colors hover:text-violet-300"
-          >
-            Tentar novamente
-          </button>
-        </div>
-      )}
-
-      {/* Thumbnail Preview for Images */}
-      {file.preview && (
-        <div ref={previewRef} className="mt-3 overflow-hidden rounded">
-          <img
-            src={file.preview}
-            alt={file.name}
-            className="h-auto max-h-32 w-full object-cover"
-          />
-        </div>
       )}
     </div>
   );
 }
 
-// ─── Tela de Login ───
-function LoginScreen({ onLogin }: { onLogin: () => void }) {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+// ─── Chat Component ───
+export function Chat() {
+  const { license, isLoading: isLicenseLoading } = useLicense();
+  const {
+    messages,
+    isLoading,
+    runs,
+    submit,
+    stop,
+    addAttachment,
+    removeAttachment,
+    clearAttachments,
+    uploadProgress,
+    previewContent,
+    updatePreview,
+    previewError,
+    clearPreview,
+  } = useMsk();
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-
-    if (!email.trim()) {
-      setError("Digite seu email para continuar.");
-      return;
-    }
-    if (!password.trim()) {
-      setError("Digite sua senha para continuar.");
-      return;
-    }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      setError("Email inválido. Verifique o formato.");
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      // Simula verificação de credenciais
-      await new Promise((r) => setTimeout(r, 1200));
-      onLogin();
-    } catch (err) {
-      setError("Erro ao fazer login. Tente novamente.");
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-violet-950 via-purple-950 to-indigo-950 p-4">
-      {/* Background decoration */}
-      <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 size-80 rounded-full bg-violet-600/20 blur-3xl" />
-        <div className="absolute -bottom-40 -left-40 size-80 rounded-full bg-purple-600/20 blur-3xl" />
-        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 size-96 rounded-full bg-indigo-600/10 blur-3xl" />
-      </div>
-
-      {/* Login Card */}
-      <div className="relative w-full max-w-md">
-        {/* Glow effect */}
-        <div className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-violet-500 via-purple-500 to-indigo-500 opacity-20 blur-sm" />
-
-        <div className="relative rounded-2xl border border-violet-700/50 bg-gradient-to-b from-violet-950/95 to-purple-950/95 p-8 shadow-2xl backdrop-blur-sm">
-          {/* Logo/Brand */}
-          <div className="mb-8 text-center">
-            <div className="mx-auto mb-4 flex size-16 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-600 to-purple-600 shadow-lg shadow-violet-500/25">
-              <Sparkles className="size-8 text-white" />
-            </div>
-            <h1 className="mb-2 text-2xl font-bold text-white">MSK Studio</h1>
-            <p className="text-sm text-violet-300">Faça login para acessar a plataforma</p>
-          </div>
-
-          {/* Error Message */}
-          {error && (
-            <div className="mb-4 flex items-center gap-2 rounded-lg bg-red-950/60 border border-red-800/50 p-3">
-              <TriangleAlert className="size-4 text-red-400 shrink-0" />
-              <p className="text-xs text-red-300">{error}</p>
-            </div>
-          )}
-
-          {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Email field */}
-            <div className="space-y-2">
-              <label htmlFor="email" className="block text-xs font-medium text-violet-300">
-                Email
-              </label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-violet-500" />
-                <input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="seu@email.com"
-                  autoComplete="email"
-                  disabled={isLoading}
-                  className="w-full rounded-xl border border-violet-700/50 bg-violet-900/50 py-3 pl-10 pr-4 text-sm text-white placeholder-violet-500 outline-none transition-all duration-200 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/25 disabled:cursor-not-allowed disabled:opacity-50"
-                />
-              </div>
-            </div>
-
-            {/* Password field */}
-            <div className="space-y-2">
-              <label htmlFor="password" className="block text-xs font-medium text-violet-300">
-                Senha
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-violet-500" />
-                <input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  autoComplete="current-password"
-                  disabled={isLoading}
-                  className="w-full rounded-xl border border-violet-700/50 bg-violet-900/50 py-3 pl-10 pr-12 text-sm text-white placeholder-violet-500 outline-none transition-all duration-200 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/25 disabled:cursor-not-allowed disabled:opacity-50"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-violet-500 transition-colors hover:text-violet-400 disabled:cursor-not-allowed"
-                  disabled={isLoading}
-                  aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
-                >
-                  {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                </button>
-              </div>
-            </div>
-
-            {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 py-3 text-sm font-semibold text-white shadow-lg shadow-violet-500/25 transition-all duration-200 hover:from-violet-500 hover:to-purple-500 focus:outline-none focus:ring-2 focus:ring-violet-500/50 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {isLoading ? (
-                <span className="flex items-center justify-center gap-2">
-                  <Loader2 className="size-4 animate-spin" />
-                  Entrando...
-                </span>
-              ) : (
-                "Entrar"
-              )}
-            </button>
-          </form>
-
-          {/* Footer */}
-          <p className="mt-6 text-center text-xs text-violet-600">
-            Ao continuar, você concorda com nossos termos de uso
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── File Upload Component ───
-interface FileUploadProps {
-  onFilesSelected: (files: File[]) => void;
-  isUploading: boolean;
-  uploadProgress: number;
-}
-
-function FileUpload({ onFilesSelected, isUploading, uploadProgress }: FileUploadProps) {
-  const [isDragging, setIsDragging] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
-  }, []);
-
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-  }, []);
-
-  const handleDrop = useCallback(
-    (e: React.DragEvent) => {
-      e.preventDefault();
-      setIsDragging(false);
-      const files = Array.from(e.dataTransfer.files);
-      if (files.length > 0) {
-        onFilesSelected(files);
-      }
-    },
-    [onFilesSelected]
-  );
-
-  const handleFileChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const files = e.target.files ? Array.from(e.target.files) : [];
-      if (files.length > 0) {
-        onFilesSelected(files);
-      }
-      // Reset input
-      if (inputRef.current) {
-        inputRef.current.value = "";
-      }
-    },
-    [onFilesSelected]
-  );
-
-  return (
-    <div
-      className={`relative rounded-xl border-2 border-dashed p-6 text-center transition-all ${
-        isDragging
-          ? "border-violet-500 bg-violet-900/30"
-          : "border-violet-700/40 bg-violet-950/20"
-      }`}
-      onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
-      onDrop={handleDrop}
-    >
-      <input
-        ref={inputRef}
-        type="file"
-        multiple
-        onChange={handleFileChange}
-        className="hidden"
-        id="file-upload"
-        accept="image/*,.pdf,.doc,.docx,.txt"
-        disabled={isUploading}
-      />
-      <label
-        htmlFor="file-upload"
-        className={`flex flex-col items-center gap-3 cursor-pointer ${
-          isUploading ? "pointer-events-none opacity-50" : ""
-        }`}
-      >
-        <div className="flex size-12 items-center justify-center rounded-full bg-violet-900/50">
-          <Paperclip className="size-5 text-violet-400" />
-        </div>
-        <div>
-          <p className="text-sm text-violet-300">
-            {isDragging ? "Solte os arquivos aqui" : "Arraste arquivos ou clique para selecionar"}
-          </p>
-          <p className="mt-1 text-xs text-violet-600">
-            Imagens, PDF, DOC, TXT (máx. 10MB)
-          </p>
-        </div>
-      </label>
-
-      {/* Upload Progress */}
-      {isUploading && (
-        <div className="mt-4">
-          <div className="mb-1 flex justify-between text-xs">
-            <span className="text-violet-400">Enviando...</span>
-            <span className="text-violet-500">{uploadProgress}%</span>
-          </div>
-          <div className="h-1.5 overflow-hidden rounded-full bg-violet-950">
-            <div
-              className="h-full rounded-full bg-gradient-to-r from-violet-600 to-purple-500 transition-all duration-300"
-              style={{ width: `${uploadProgress}%` }}
-            />
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── Message Bubble ───
-interface Message {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-  timestamp: Date;
-  attachments?: Attachment[];
-}
-
-function MessageBubble({ message }: { message: Message }) {
-  const isUser = message.role === "user";
-
-  return (
-    <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
-      <div
-        className={`max-w-[80%] rounded-2xl px-4 py-3 ${
-          isUser
-            ? "rounded-br-md bg-gradient-to-br from-violet-600 to-purple-600 text-white"
-            : "rounded-bl-md border border-violet-800/50 bg-violet-950/60 text-violet-100"
-        }`}
-      >
-        <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
-        <p
-          className={`mt-1 text-[10px] ${
-            isUser ? "text-violet-200/60" : "text-violet-600"
-          }`}
-        >
-          {message.timestamp.toLocaleTimeString("pt-BR", {
-            hour: "2-digit",
-            minute: "2-digit",
-          })}
-        </p>
-
-        {/* Attachments in message */}
-        {message.attachments && message.attachments.length > 0 && (
-          <div className="mt-2 flex flex-wrap gap-2">
-            {message.attachments.map((att) => (
-              <div
-                key={att.id}
-                className="flex items-center gap-1.5 rounded-lg bg-white/10 px-2 py-1"
-              >
-                <Paperclip className="size-3 text-white/70" />
-                <span className="text-xs text-white/90">{att.name}</span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ─── Chat Interface ───
-function ChatInterface() {
-  const { license } = useLicense();
-  const msk = useMsk();
   const [input, setInput] = useState("");
-  const [messages, setMessages] = useState<Message[]>([]);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [previewContent, setPreviewContent] = useState<string | null>(null);
-  const [isUpdatingPreview, setIsUpdatingPreview] = useState(false);
-  const [previewError, setPreviewError] = useState<string | null>(null);
-  const [toast, setToast] = useState<{ message: string; type: "error" | "success" | "info" } | null>(
-    null
-  );
-  const [currentRun, setCurrentRun] = useState<MskRun | null>(null);
-  const [completedRuns, setCompletedRuns] = useState<MskRun[]>([]);
+  const [toast, setToast] = useState<{ message: string; type: "error" | "success" | "info" } | null>(null);
+  const [isPreviewUpdating, setIsPreviewUpdating] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const chatBg = chatBgAsset?.default ?? chatBgAsset;
 
   // Auto-scroll to bottom
   const scrollToBottom = useCallback(() => {
@@ -718,182 +355,7 @@ function ChatInterface() {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, scrollToBottom]);
-
-  // Debounced preview update
-  const debouncedPreviewUpdate = useDebounceCallback(
-    useCallback(
-      async (attachmentId: string) => {
-        const attachment = attachments.find((a) => a.id === attachmentId);
-        if (!attachment) return;
-
-        setIsUpdatingPreview(true);
-        setPreviewError(null);
-
-        try {
-          const result = await AttachmentService.getPreview(attachment);
-          setPreviewContent(result.html);
-        } catch (err) {
-          const message = err instanceof Error ? err.message : "Erro ao buscar prévia";
-          setPreviewError(message);
-          setToast({ message: "Não foi possível atualizar a prévia", type: "error" });
-        } finally {
-          setIsUpdatingPreview(false);
-        }
-      },
-      [attachments]
-    ),
-    500
-  ),
-    500
-  );
-
-  // Handle file selection
-  const handleFilesSelected = useCallback(
-    async (files: File[]) => {
-      setIsUploading(true);
-      setUploadProgress(0);
-
-      const newAttachments: Attachment[] = files.map((file) => ({
-        id: `${Date.now()}-${file.name}`,
-        name: file.name,
-        type: file.type,
-        size: file.size,
-        status: "uploading" as const,
-        file,
-        preview: file.type.startsWith("image/") ? URL.createObjectURL(file) : undefined,
-      }));
-
-      setAttachments((prev) => [...prev, ...newAttachments]);
-
-      try {
-        for (let i = 0; i < files.length; i++) {
-          setUploadProgress(Math.round(((i + 1) / files.length) * 100));
-          const uploaded = await AttachmentService.upload(files[i], {
-            onProgress: (pct) => {
-              setUploadProgress(Math.round((pct / 100) * ((i + 1) / files.length) * 100));
-            },
-          });
-
-          setAttachments((prev) =>
-            prev.map((att) =>
-              att.id === newAttachments[i].id
-                ? { ...att, id: uploaded.id, status: "ready" as const, url: uploaded.url }
-                : att
-            )
-          );
-        }
-
-        setToast({ message: `${files.length} arquivo(s) enviado(s) com sucesso`, type: "success" });
-      } catch (err) {
-        const message = err instanceof Error ? err.message : "Erro ao enviar arquivos";
-        setToast({ message, type: "error" });
-        setAttachments((prev) =>
-          prev.map((att) => (att.status === "uploading" ? { ...att, status: "error" as const } : att))
-        );
-      } finally {
-        setIsUploading(false);
-        setUploadProgress(0);
-      }
-    },
-    []
-  );
-
-  // Handle attachment removal
-  const handleRemoveAttachment = useCallback(
-    async (id: string) => {
-      const attachment = attachments.find((a) => a.id === id);
-      if (attachment?.url) {
-        try {
-          await AttachmentService.delete(attachment.id);
-        } catch {
-          // Silent fail - file might already be deleted on server
-        }
-      }
-      setAttachments((prev) => prev.filter((a) => a.id !== id));
-    },
-    [attachments]
-  );
-
-  // Handle preview update
-  const handlePreviewUpdate = useCallback(
-    async (id: string) => {
-      try {
-        await debouncedPreviewUpdate(id);
-      } catch (err) {
-        throw new Error("Não foi possível atualizar a prévia");
-      }
-    },
-    [debouncedPreviewUpdate]
-  );
-
-  // Handle message submission
-  const handleSubmit = useCallback(
-    async (e: React.FormEvent) => {
-      e.preventDefault();
-
-      const trimmedInput = input.trim();
-      if (!trimmedInput && attachments.length === 0) return;
-
-      const userMessage: Message = {
-        id: `msg-${Date.now()}`,
-        role: "user",
-        content: trimmedInput,
-        timestamp: new Date(),
-        attachments: [...attachments],
-      };
-
-      setMessages((prev) => [...prev, userMessage]);
-      setInput("");
-      setIsGenerating(true);
-      setPreviewError(null);
-
-      // Simulate run creation
-      const run: MskRun = {
-        id: `run-${Date.now()}`,
-        status: "running",
-        step: "receiving",
-        created_at: new Date().toISOString(),
-      };
-      setCurrentRun(run);
-
-      // Simulate progress
-      const steps = ["receiving", "processing", "generating", "finalizing"] as const;
-      for (let i = 0; i < steps.length; i++) {
-        await new Promise((r) => setTimeout(r, 800));
-        setCurrentRun((prev) =>
-          prev ? { ...prev, step: steps[i], status: i === steps.length - 1 ? "done" : "running" } : null
-        );
-        if (i === steps.length - 1) {
-          setCompletedRuns((prev) => [
-            ...prev,
-            {
-              ...run,
-              status: "done",
-              step: steps[i],
-              summary: "Prévia atualizada com sucesso",
-              created_at: new Date().toISOString(),
-            },
-          ]);
-        }
-      }
-
-      // Generate assistant response
-      const assistantMessage: Message = {
-        id: `msg-${Date.now()}-assistant`,
-        role: "assistant",
-        content: "Aqui está a prévia atualizada do seu projeto. As alterações foram aplicadas conforme solicitado.",
-        timestamp: new Date(),
-      };
-
-      setMessages((prev) => [...prev, assistantMessage]);
-      setAttachments([]);
-      setIsGenerating(false);
-      setCurrentRun(null);
-      setToast({ message: "Prévia atualizada com sucesso!", type: "success" });
-    },
-    [input, attachments]
-  );
+  }, [messages, runs, scrollToBottom]);
 
   // Auto-resize textarea
   useEffect(() => {
@@ -903,151 +365,390 @@ function ChatInterface() {
     }
   }, [input]);
 
-  const readyAttachments = attachments.filter((a) => a.status === "ready");
+  // Sync attachments with context
+  useEffect(() => {
+    if (attachments.length > 0) {
+      const latestAttachment = attachments[attachments.length - 1];
+      addAttachment(latestAttachment);
+    }
+  }, [attachments]);
+
+  const handleFileSelect = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = e.target.files;
+      if (!files || files.length === 0) return;
+
+      const fileArray = Array.from(files);
+      const newAttachments: Attachment[] = [];
+
+      for (const file of fileArray) {
+        // Validate file size (max 10MB)
+        if (file.size > 10 * 1024 * 1024) {
+          setToast({ message: `Arquivo ${file.name} é muito grande (máx. 10MB)`, type: "error" });
+          continue;
+        }
+
+        // Validate file type
+        const allowedTypes = ["image/png", "image/jpeg", "image/gif", "image/webp", "application/pdf"];
+        if (!allowedTypes.includes(file.type)) {
+          setToast({ message: `Tipo de arquivo ${file.type} não suportado`, type: "error" });
+          continue;
+        }
+
+        const attachment: Attachment = {
+          id: `local-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+          name: file.name,
+          type: file.type,
+          size: file.size,
+          status: "uploading",
+        };
+
+        // Create local preview for images
+        if (file.type.startsWith("image/")) {
+          const reader = new FileReader();
+          reader.onload = (ev) => {
+            setAttachments((prev) =>
+              prev.map((a) =>
+                a.id === attachment.id ? { ...a, url: ev.target?.result as string } : a
+              )
+            );
+          };
+          reader.readAsDataURL(file);
+        }
+
+        newAttachments.push(attachment);
+        setAttachments((prev) => [...prev, attachment]);
+
+        // Simulate upload
+        setTimeout(() => {
+          setAttachments((prev) =>
+            prev.map((a) =>
+              a.id === attachment.id ? { ...a, status: "done" } : a
+            )
+          );
+        }, 1000 + Math.random() * 1000);
+      }
+
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    },
+    [addAttachment]
+  );
+
+  const handleRemoveAttachment = useCallback(
+    (id: string) => {
+      setAttachments((prev) => prev.filter((a) => a.id !== id));
+      removeAttachment(id);
+    },
+    [removeAttachment]
+  );
+
+  const handleSubmit = useCallback(async () => {
+    if (!input.trim() && attachments.length === 0) {
+      setToast({ message: "Digite uma mensagem ou anexe um arquivo", type: "info" });
+      return;
+    }
+
+    if (!license?.active) {
+      setToast({ message: "Licença não ativa. Verifique sua assinatura.", type: "error" });
+      return;
+    }
+
+    try {
+      await submit(input.trim(), attachments);
+      setInput("");
+      setAttachments([]);
+      clearAttachments();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Erro ao enviar mensagem";
+      setToast({ message, type: "error" });
+    }
+  }, [input, attachments, license, submit, clearAttachments]);
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        handleSubmit();
+      }
+    },
+    [handleSubmit]
+  );
+
+  const handleRetryPreview = useCallback(() => {
+    if (previewContent) {
+      setIsPreviewUpdating(true);
+      updatePreview(previewContent)
+        .catch(() => {})
+        .finally(() => setIsPreviewUpdating(false));
+    }
+  }, [previewContent, updatePreview]);
+
+  const activeRun = runs.find((r) => r.status === "running" || r.status === "pending");
+  const latestRun = runs[runs.length - 1];
+  const isProcessing = isLoading || !!activeRun;
+
+  if (isLicenseLoading) {
+    return (
+      <div className="flex h-full items-center justify-center bg-gradient-to-br from-violet-950 via-violet-900 to-indigo-950">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="size-10 animate-spin text-violet-500" />
+          <p className="text-sm text-violet-400">Carregando licença...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex h-screen flex-col bg-gradient-to-br from-violet-950 via-purple-950 to-indigo-950">
+    <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-violet-800/30 bg-gradient-to-br from-violet-950 via-violet-900 to-indigo-950 shadow-2xl">
+      {/* Background Pattern */}
+      {chatBg && (
+        <div
+          className="pointer-events-none absolute inset-0 opacity-5"
+          style={{ backgroundImage: `url(${chatBg})` }}
+        />
+      )}
+
       {/* Header */}
-      <header className="flex shrink-0 items-center justify-between border-b border-violet-800/40 bg-violet-950/80 px-6 py-4 backdrop-blur-sm">
+      <div className="relative z-10 flex items-center justify-between border-b border-violet-800/40 bg-violet-900/60 px-6 py-4 backdrop-blur-sm">
         <div className="flex items-center gap-3">
-          <div className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600 to-purple-600">
+          <div className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600 to-violet-800 shadow-lg shadow-violet-900/50">
             <Sparkles className="size-5 text-white" />
           </div>
           <div>
-            <h1 className="text-lg font-semibold text-white">MSK Studio</h1>
-            <p className="text-xs text-violet-400">
-              {license ? `Plano ${license.plan}` : "Carregando..."}
-            </p>
+            <h2 className="text-sm font-semibold text-white">MSK AI Studio</h2>
+            <p className="text-xs text-violet-400">Assistente de criação inteligente</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="rounded-full bg-emerald-900/50 px-3 py-1 text-xs text-emerald-400">
-            {license?.credits ?? 0} créditos
-          </span>
-        </div>
-      </header>
+        {license && (
+          <div className="flex items-center gap-2 rounded-full bg-emerald-950/60 px-3 py-1.5 border border-emerald-800/40">
+            <CheckCircle2 className="size-3.5 text-emerald-400" />
+            <span className="text-xs text-emerald-300">{license.plan} Plan</span>
+          </div>
+        )}
+      </div>
 
       {/* Main Content */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* Chat Panel */}
-        <div className="flex flex-1 flex-col border-r border-violet-800/40">
-          {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-6">
-            {messages.length === 0 ? (
+      <div className="relative z-10 flex flex-1 overflow-hidden">
+        {/* Messages Area */}
+        <div className="flex flex-1 flex-col overflow-hidden">
+          {/* Messages Scroll */}
+          <div className="flex-1 space-y-4 overflow-y-auto px-6 py-4">
+            {messages.length === 0 && !isProcessing && (
               <div className="flex h-full flex-col items-center justify-center text-center">
-                <div className="mb-6 flex size-20 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-600/20 to-purple-600/20">
-                  <Sparkles className="size-10 text-violet-400" />
+                <div className="mb-6 flex size-16 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-600/20 to-violet-800/20 border border-violet-700/30">
+                  <Sparkles className="size-8 text-violet-400" />
                 </div>
-                <h2 className="mb-2 text-xl font-semibold text-white">
-                  Bem-vindo ao MSK Studio
-                </h2>
-                <p className="max-w-md text-sm text-violet-400">
-                  Envie uma mensagem ou anexe arquivos para começar a criar
-                  prévias incríveis com inteligência artificial.
+                <h3 className="mb-2 text-lg font-medium text-white">Bem-vindo ao MSK Studio</h3>
+                <p className="max-w-sm text-sm text-violet-400">
+                  Descreva o que você precisa criar ou anexe arquivos de referência.
+                  Nossa IA vai transformar suas ideias em realidade.
                 </p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {messages.map((msg) => (
-                  <MessageBubble key={msg.id} message={msg} />
-                ))}
-                <div ref={messagesEndRef} />
+                <div className="mt-8 grid grid-cols-2 gap-3">
+                  {[
+                    "Criar landing page",
+                    "Gerar componentes React",
+                    "Desenhar海报",
+                    "Escrever código",
+                  ].map((suggestion, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setInput(suggestion)}
+                      className="rounded-lg border border-violet-800/40 bg-violet-900/40 px-4 py-2 text-left text-xs text-violet-300 transition-all hover:border-violet-600/60 hover:bg-violet-800/40"
+                    >
+                      {suggestion}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
 
-            {/* Current Run Progress */}
-            {currentRun && (
-              <div className="mt-4">
-                <RunProgress run={currentRun} />
+            {messages.map((msg, idx) => (
+              <div
+                key={msg.id || idx}
+                className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+              >
+                <div
+                  className={`max-w-[80%] rounded-2xl px-4 py-3 ${
+                    msg.role === "user"
+                      ? "bg-gradient-to-r from-violet-600 to-violet-700 text-white shadow-lg shadow-violet-900/30"
+                      : "bg-violet-900/60 text-violet-100 border border-violet-800/40 backdrop-blur-sm"
+                  }`}
+                >
+                  <div className="flex items-start gap-2">
+                    {msg.role === "assistant" && (
+                      <Sparkles className="mt-1 size-4 shrink-0 text-violet-400" />
+                    )}
+                    <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                  </div>
+                  {msg.attachments && msg.attachments.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {msg.attachments.map((att) => (
+                        <div
+                          key={att.id}
+                          className="flex items-center gap-1.5 rounded bg-black/20 px-2 py-1 text-xs text-white/80"
+                        >
+                          <Paperclip className="size-3" />
+                          <span className="max-w-[100px] truncate">{att.name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+
+            {isProcessing && !activeRun && (
+              <div className="flex justify-start">
+                <div className="flex items-center gap-2 rounded-2xl bg-violet-900/60 px-4 py-3 border border-violet-800/40">
+                  <Loader2 className="size-4 animate-spin text-violet-400" />
+                  <span className="text-sm text-violet-300">Pensando...</span>
+                </div>
               </div>
             )}
 
-            {/* Completed Runs */}
-            {completedRuns.length > 0 && (
-              <div className="mt-4 space-y-3">
-                {completedRuns.map((run) => (
-                  <RunCard key={run.id} run={run} />
-                ))}
-              </div>
-            )}
+            <div ref={messagesEndRef} />
           </div>
 
-          {/* Attachments Preview */}
-          {attachments.length > 0 && (
-            <div className="border-t border-violet-800/40 bg-violet-950/60 p-4">
-              <p className="mb-3 text-xs font-medium text-violet-400">
-                Anexos ({attachments.length})
-              </p>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {attachments.map((file) => (
-                  <AttachmentPreview
-                    key={file.id}
-                    file={file}
-                    onRemove={handleRemoveAttachment}
-                    onPreviewUpdate={handlePreviewUpdate}
-                  />
+          {/* Active Run Progress */}
+          {activeRun && (
+            <div className="px-6 py-2">
+              <RunProgress run={activeRun} />
+            </div>
+          )}
+
+          {/* Completed Runs */}
+          {runs.filter((r) => r.status === "done" || r.status === "error").length > 0 && !activeRun && (
+            <div className="space-y-2 px-6 py-2">
+              {runs
+                .filter((r) => r.status === "done" || r.status === "error")
+                .slice(-3)
+                .map((run, idx) => (
+                  <RunCard key={run.id || idx} run={run} />
                 ))}
-              </div>
             </div>
           )}
 
           {/* Input Area */}
-          <div className="border-t border-violet-800/40 bg-violet-950/80 p-4">
-            <form onSubmit={handleSubmit} className="flex items-end gap-3">
-              <div className="relative flex-1">
+          <div className="border-t border-violet-800/40 bg-violet-900/40 p-4 backdrop-blur-sm">
+            {/* Attachments Preview */}
+            {attachments.length > 0 && (
+              <div className="mb-3 flex flex-wrap gap-2">
+                {attachments.map((att) => (
+                  <AttachmentPreview
+                    key={att.id}
+                    attachment={att}
+                    onRemove={() => handleRemoveAttachment(att.id)}
+                  />
+                ))}
+              </div>
+            )}
+
+            <div className="flex items-end gap-3">
+              {/* File Upload */}
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="flex size-10 items-center justify-center rounded-xl border border-violet-700/50 bg-violet-900/60 text-violet-400 transition-all hover:border-violet-500/60 hover:bg-violet-800/60 hover:text-violet-300"
+                aria-label="Anexar arquivo"
+                disabled={isProcessing}
+              >
+                <Paperclip className="size-5" />
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/gif,image/webp,application/pdf"
+                multiple
+                onChange={handleFileSelect}
+                className="hidden"
+              />
+
+              {/* Text Input */}
+              <div className="flex-1">
                 <textarea
                   ref={textareaRef}
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
                   placeholder="Descreva o que você quer criar..."
+                  className="w-full resize-none rounded-xl border border-violet-700/50 bg-violet-950/60 px-4 py-3 text-sm text-white placeholder:text-violet-600 focus:border-violet-500/60 focus:outline-none focus:ring-2 focus:ring-violet-500/30"
                   rows={1}
-                  disabled={isGenerating}
-                  className="w-full resize-none rounded-xl border border-violet-700/50 bg-violet-900/50 px-4 py-3 pr-12 text-sm text-white placeholder-violet-500 outline-none transition-all duration-200 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/25 disabled:cursor-not-allowed disabled:opacity-50"
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSubmit(e as unknown as React.FormEvent);
-                    }
-                  }}
+                  disabled={isProcessing}
                 />
+              </div>
+
+              {/* Stop / Send Button */}
+              {isProcessing ? (
                 <button
-                  type="button"
-                  className="absolute bottom-3 right-3 text-violet-500 transition-colors hover:text-violet-400 disabled:cursor-not-allowed disabled:opacity-50"
-                  disabled={isGenerating || isUploading}
-                  aria-label="Anexar arquivo"
+                  onClick={stop}
+                  className="flex size-10 items-center justify-center rounded-xl border border-red-700/50 bg-red-900/60 text-red-400 transition-all hover:border-red-500/60 hover:bg-red-800/60 hover:text-red-300"
+                  aria-label="Parar"
                 >
-                  <Paperclip className="size-5" />
+                  <Square className="size-5 fill-current" />
+                </button>
+              ) : (
+                <button
+                  onClick={handleSubmit}
+                  disabled={!input.trim() && attachments.length === 0}
+                  className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600 to-violet-700 text-white shadow-lg shadow-violet-900/50 transition-all hover:from-violet-500 hover:to-violet-600 disabled:opacity-50 disabled:hover:from-violet-600 disabled:hover:to-violet-700"
+                  aria-label="Enviar"
+                >
+                  <Send className="size-5" />
+                </button>
+              )}
+            </div>
+
+            {/* Upload Progress */}
+            {uploadProgress > 0 && uploadProgress < 100 && (
+              <div className="mt-3">
+                <div className="flex items-center justify-between text-xs text-violet-400 mb-1">
+                  <span>Enviando arquivos...</span>
+                  <span>{uploadProgress}%</span>
+                </div>
+                <div className="h-1 overflow-hidden rounded-full bg-violet-950">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-violet-600 to-violet-400 transition-all duration-300"
+                    style={{ width: `${uploadProgress}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Preview Toggle */}
+            {previewContent && (
+              <div className="mt-3 flex items-center justify-between rounded-lg border border-violet-800/40 bg-violet-900/40 p-2">
+                <div className="flex items-center gap-2">
+                  <Image className="size-4 text-violet-400" />
+                  <span className="text-xs text-violet-300">Prévia disponível</span>
+                </div>
+                <button
+                  onClick={() => {
+                    clearPreview();
+                    setToast({ message: "Prévia removida", type: "info" });
+                  }}
+                  className="flex items-center gap-1 text-xs text-violet-400 transition-colors hover:text-violet-200"
+                >
+                  <Trash2 className="size-3" />
+                  Limpar
                 </button>
               </div>
-              <button
-                type="submit"
-                disabled={isGenerating || isUploading || (!input.trim() && attachments.length === 0)}
-                className="flex size-12 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600 to-purple-600 text-white shadow-lg shadow-violet-500/25 transition-all duration-200 hover:from-violet-500 hover:to-purple-500 disabled:cursor-not-allowed disabled:opacity-50"
-                aria-label="Enviar mensagem"
-              >
-                {isGenerating ? (
-                  <Loader2 className="size-5 animate-spin" />
-                ) : (
-                  <Send className="size-5" />
-                )}
-              </button>
-            </form>
+            )}
           </div>
         </div>
 
         {/* Preview Panel */}
-        <div className="hidden w-1/2 flex-col border-l border-violet-800/40 p-4 lg:flex">
-          <Preview
-            content={previewContent}
-            isUpdating={isUpdatingPreview}
-            updateError={previewError}
-            onRetry={() => {
-              if (readyAttachments.length > 0) {
-                handlePreviewUpdate(readyAttachments[0].id);
-              }
-            }}
-          />
-        </div>
+        {previewContent && (
+          <div className="w-96 border-l border-violet-800/40 p-4">
+            <Preview
+              content={previewContent}
+              isUpdating={isPreviewUpdating}
+              updateError={previewError}
+              onRetry={handleRetryPreview}
+            />
+          </div>
+        )}
       </div>
 
       {/* Toast Notification */}
@@ -1061,50 +762,3 @@ function ChatInterface() {
     </div>
   );
 }
-
-// ─── Main Chat Component ───
-export function Chat() {
-  const { license, isLoading } = useLicense();
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-
-  // Check for existing session
-  useEffect(() => {
-    const session = localStorage.getItem("msk_session");
-    if (session) {
-      setIsAuthenticated(true);
-    }
-  }, []);
-
-  const handleLogin = useCallback(() => {
-    localStorage.setItem("msk_session", "active");
-    setIsAuthenticated(true);
-  }, []);
-
-  const handleLogout = useCallback(() => {
-    localStorage.removeItem("msk_session");
-    setIsAuthenticated(false);
-  }, []);
-
-  if (isLoading) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-gradient-to-br from-violet-950 via-purple-950 to-indigo-950">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="size-10 animate-spin text-violet-400" />
-          <p className="text-sm text-violet-400">Carregando...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!isAuthenticated) {
-    return <LoginScreen onLogin={handleLogin} />;
-  }
-
-  return (
-    <div>
-      <ChatInterface />
-    </div>
-  );
-}
-
-export default Chat;
