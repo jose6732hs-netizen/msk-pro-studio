@@ -16,13 +16,20 @@ import {
   Lock,
   Mail,
   Sparkles,
+  Image,
+  AlertCircle,
+  Trash2,
+  ZoomIn,
+  ZoomOut,
+  ChevronDown,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { useDebounceCallback } from "use-debounce";
 import chatBgAsset from "@/assets/msk-chat-bg.png.asset.json";
 import { useLicense } from "@/lib/msk/license-context";
 import { useMsk } from "@/lib/msk/provider";
 import { AttachmentService } from "@/lib/msk/services";
-import { RUN_STEPS, timeAgo, type MskRun } from "@/lib/msk/core";
+import { RUN_STEPS, timeAgo, type MskRun, type Attachment } from "@/lib/msk/core";
 
 function labelForStatus(s: string) {
   if (s === "uploading") return "enviando";
@@ -31,6 +38,52 @@ function labelForStatus(s: string) {
   return s;
 }
 
+// ─── Toast Notification ───
+interface ToastProps {
+  message: string;
+  type: "error" | "success" | "info";
+  onClose: () => void;
+}
+
+function Toast({ message, type, onClose }: ToastProps) {
+  useEffect(() => {
+    const timer = setTimeout(onClose, 5000);
+    return () => clearTimeout(timer);
+  }, [onClose]);
+
+  const bgColor = {
+    error: "bg-red-900/90 border-red-600/50",
+    success: "bg-emerald-900/90 border-emerald-600/50",
+    info: "bg-violet-900/90 border-violet-600/50",
+  }[type];
+
+  const iconColor = {
+    error: "text-red-400",
+    success: "text-emerald-400",
+    info: "text-violet-400",
+  }[type];
+
+  return (
+    <div
+      className={`fixed bottom-4 right-4 z-50 flex items-center gap-3 rounded-xl border px-4 py-3 shadow-2xl backdrop-blur-sm ${bgColor}`}
+      role="alert"
+    >
+      {type === "error" && <AlertCircle className={`size-5 ${iconColor}`} />}
+      {type === "success" && <CheckCircle2 className={`size-5 ${iconColor}`} />}
+      {type === "info" && <TriangleAlert className={`size-5 ${iconColor}`} />}
+      <p className="text-sm text-white">{message}</p>
+      <button
+        onClick={onClose}
+        className="ml-2 text-violet-400 transition-colors hover:text-white"
+        aria-label="Fechar"
+      >
+        <X className="size-4" />
+      </button>
+    </div>
+  );
+}
+
+// ─── Run Progress ───
 function RunProgress({ run }: { run: MskRun }) {
   const step = RUN_STEPS[run.step] ?? run.step;
   const pct = useMemo(() => {
@@ -69,6 +122,7 @@ function RunProgress({ run }: { run: MskRun }) {
   );
 }
 
+// ─── Run Card ───
 function RunCard({ run }: { run: MskRun }) {
   const summary = run.summary ?? "Execução concluída.";
   const createdAt = timeAgo(run.created_at);
@@ -92,6 +146,245 @@ function RunCard({ run }: { run: MskRun }) {
   );
 }
 
+// ─── Preview Component ───
+interface PreviewProps {
+  content: string | null;
+  isUpdating: boolean;
+  updateError: string | null;
+  onRetry: () => void;
+}
+
+function Preview({ content, isUpdating, updateError, onRetry }: PreviewProps) {
+  const [zoom, setZoom] = useState(100);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const handleZoomIn = useCallback(() => {
+    setZoom((prev) => Math.min(prev + 25, 200));
+  }, []);
+
+  const handleZoomOut = useCallback(() => {
+    setZoom((prev) => Math.max(prev - 25, 50));
+  }, []);
+
+  if (!content && !isUpdating) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center rounded-xl border border-dashed border-violet-700/40 bg-violet-950/20 p-8 text-center">
+        <Image className="mb-4 size-12 text-violet-600/50" />
+        <p className="text-sm text-violet-400">Nenhuma prévia disponível</p>
+        <p className="mt-1 text-xs text-violet-600">A prévia será exibida aqui após o upload</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative flex h-full flex-col rounded-xl border border-violet-700/40 bg-violet-950/40">
+      {/* Preview Toolbar */}
+      <div className="flex items-center justify-between border-b border-violet-800/40 bg-violet-900/40 px-4 py-2">
+        <div className="flex items-center gap-2">
+          <Image className="size-4 text-violet-400" />
+          <span className="text-xs font-medium text-violet-300">Prévia</span>
+          {isUpdating && (
+            <span className="flex items-center gap-1 text-xs text-violet-500">
+              <Loader2 className="size-3 animate-spin" />
+              Atualizando...
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={handleZoomOut}
+            className="rounded p-1 text-violet-500 transition-colors hover:bg-violet-800/50 hover:text-violet-300"
+            aria-label="Diminuir zoom"
+            disabled={zoom <= 50}
+          >
+            <ZoomOut className="size-4" />
+          </button>
+          <span className="min-w-[3rem] text-center text-xs text-violet-400">{zoom}%</span>
+          <button
+            onClick={handleZoomIn}
+            className="rounded p-1 text-violet-500 transition-colors hover:bg-violet-800/50 hover:text-violet-300"
+            aria-label="Aumentar zoom"
+            disabled={zoom >= 200}
+          >
+            <ZoomIn className="size-4" />
+          </button>
+          <button
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="ml-2 rounded p-1 text-violet-500 transition-colors hover:bg-violet-800/50 hover:text-violet-300"
+            aria-label={isExpanded ? "Recolher" : "Expandir"}
+          >
+            <ChevronDown
+              className={`size-4 transition-transform ${isExpanded ? "rotate-180" : ""}`}
+            />
+          </button>
+        </div>
+      </div>
+
+      {/* Error Banner */}
+      {updateError && (
+        <div className="flex items-center justify-between border-b border-red-800/40 bg-red-950/60 px-4 py-2">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="size-4 text-red-400" />
+            <span className="text-xs text-red-300">{updateError}</span>
+          </div>
+          <button
+            onClick={onRetry}
+            className="flex items-center gap-1 rounded bg-red-900/50 px-2 py-1 text-xs text-red-300 transition-colors hover:bg-red-800/50"
+          >
+            <RotateCcw className="size-3" />
+            Tentar novamente
+          </button>
+        </div>
+      )}
+
+      {/* Preview Content */}
+      <div
+        ref={containerRef}
+        className="flex-1 overflow-auto p-4"
+        style={{ maxHeight: isExpanded ? "none" : "400px" }}
+      >
+        {content && (
+          <div
+            className="mx-auto transition-transform duration-200"
+            style={{
+              transform: `scale(${zoom / 100})`,
+              transformOrigin: "top center",
+            }}
+          >
+            {/* Render content based on type */}
+            <div
+              className="prose prose-invert prose-violet max-w-none"
+              dangerouslySetInnerHTML={{ __html: content }}
+            />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Attachment Preview ───
+interface AttachmentPreviewProps {
+  file: Attachment;
+  onRemove: (id: string) => void;
+  onPreviewUpdate: (id: string) => Promise<void>;
+}
+
+function AttachmentPreview({ file, onRemove, onPreviewUpdate }: AttachmentPreviewProps) {
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const previewRef = useRef<HTMLDivElement>(null);
+
+  const handlePreviewUpdate = useCallback(async () => {
+    if (file.status !== "ready") return;
+    
+    setIsUpdating(true);
+    setError(null);
+    
+    try {
+      await onPreviewUpdate(file.id);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Erro desconhecido";
+      setError(message);
+    } finally {
+      setIsUpdating(false);
+    }
+  }, [file.id, file.status, onPreviewUpdate]);
+
+  const fileTypeIcon = useMemo(() => {
+    const type = file.type.toLowerCase();
+    if (type.startsWith("image/")) return Image;
+    if (type.includes("pdf")) return FileText;
+    return Paperclip;
+  }, [file.type]);
+
+  const Icon = fileTypeIcon;
+
+  return (
+    <div className="group relative rounded-lg border border-violet-700/40 bg-violet-900/40 p-3 transition-all hover:border-violet-600/60">
+      <div className="flex items-start gap-3">
+        <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-violet-800/50">
+          <Icon className="size-5 text-violet-400" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium text-white">{file.name}</p>
+          <p className="text-xs text-violet-500">
+            {(file.size / 1024 / 1024).toFixed(2)} MB
+          </p>
+          <div className="mt-2 flex items-center gap-2">
+            {file.status === "uploading" && (
+              <span className="flex items-center gap-1 text-xs text-violet-400">
+                <Loader2 className="size-3 animate-spin" />
+                Enviando...
+              </span>
+            )}
+            {file.status === "ready" && (
+              <span className="flex items-center gap-1 text-xs text-emerald-400">
+                <CheckCircle2 className="size-3" />
+                Pronto
+              </span>
+            )}
+            {file.status === "error" && (
+              <span className="flex items-center gap-1 text-xs text-red-400">
+                <TriangleAlert className="size-3" />
+                Erro no upload
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* File Actions */}
+      <div className="absolute right-2 top-2 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+        {file.status === "ready" && (
+          <button
+            onClick={handlePreviewUpdate}
+            disabled={isUpdating}
+            className="rounded bg-violet-800/80 p-1.5 text-violet-400 transition-colors hover:bg-violet-700 hover:text-violet-200 disabled:cursor-not-allowed disabled:opacity-50"
+            aria-label="Atualizar prévia"
+            title="Atualizar prévia"
+          >
+            <RotateCcw className={`size-3 ${isUpdating ? "animate-spin" : ""}`} />
+          </button>
+        )}
+        <button
+          onClick={() => onRemove(file.id)}
+          className="rounded bg-red-900/80 p-1.5 text-red-400 transition-colors hover:bg-red-800 hover:text-red-200"
+          aria-label="Remover arquivo"
+          title="Remover"
+        >
+          <Trash2 className="size-3" />
+        </button>
+      </div>
+
+      {/* Preview Error */}
+      {error && (
+        <div className="mt-2 rounded bg-red-950/60 p-2">
+          <p className="text-xs text-red-400">{error}</p>
+          <button
+            onClick={handlePreviewUpdate}
+            className="mt-1 text-xs text-violet-400 underline transition-colors hover:text-violet-300"
+          >
+            Tentar novamente
+          </button>
+        </div>
+      )}
+
+      {/* Thumbnail Preview for Images */}
+      {file.preview && (
+        <div ref={previewRef} className="mt-3 overflow-hidden rounded">
+          <img
+            src={file.preview}
+            alt={file.name}
+            className="h-auto max-h-32 w-full object-cover"
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Tela de Login ───
 function LoginScreen({ onLogin }: { onLogin: () => void }) {
   const [email, setEmail] = useState("");
@@ -103,7 +396,7 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    
+
     if (!email.trim()) {
       setError("Digite seu email para continuar.");
       return;
@@ -116,12 +409,17 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
       setError("Email inválido. Verifique o formato.");
       return;
     }
-    
+
     setIsLoading(true);
-    // Simula verificação de credenciais
-    await new Promise((r) => setTimeout(r, 1200));
-    setIsLoading(false);
-    onLogin();
+    try {
+      // Simula verificação de credenciais
+      await new Promise((r) => setTimeout(r, 1200));
+      onLogin();
+    } catch (err) {
+      setError("Erro ao fazer login. Tente novamente.");
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   return (
@@ -137,7 +435,7 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
       <div className="relative w-full max-w-md">
         {/* Glow effect */}
         <div className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-violet-500 via-purple-500 to-indigo-500 opacity-20 blur-sm" />
-        
+
         <div className="relative rounded-2xl border border-violet-700/50 bg-gradient-to-b from-violet-950/95 to-purple-950/95 p-8 shadow-2xl backdrop-blur-sm">
           {/* Logo/Brand */}
           <div className="mb-8 text-center">
@@ -147,6 +445,14 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
             <h1 className="mb-2 text-2xl font-bold text-white">MSK Studio</h1>
             <p className="text-sm text-violet-300">Faça login para acessar a plataforma</p>
           </div>
+
+          {/* Error Message */}
+          {error && (
+            <div className="mb-4 flex items-center gap-2 rounded-lg bg-red-950/60 border border-red-800/50 p-3">
+              <TriangleAlert className="size-4 text-red-400 shrink-0" />
+              <p className="text-xs text-red-300">{error}</p>
+            </div>
+          )}
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-5">
@@ -192,25 +498,18 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-violet-500 transition-colors hover:text-violet-400 disabled:cursor-not-allowed"
                   disabled={isLoading}
+                  aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
                 >
                   {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                 </button>
               </div>
             </div>
 
-            {/* Error message */}
-            {error && (
-              <div className="flex items-center gap-2 rounded-lg bg-red-500/10 border border-red-500/30 px-3 py-2">
-                <TriangleAlert className="size-4 text-red-400 shrink-0" />
-                <p className="text-xs text-red-400">{error}</p>
-              </div>
-            )}
-
-            {/* Submit button */}
+            {/* Submit Button */}
             <button
               type="submit"
               disabled={isLoading}
-              className="relative w-full overflow-hidden rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 py-3 text-sm font-semibold text-white shadow-lg shadow-violet-500/30 transition-all duration-200 hover:from-violet-500 hover:to-purple-500 hover:shadow-violet-500/50 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:ring-offset-2 focus:ring-offset-violet-950 disabled:cursor-not-allowed disabled:opacity-70"
+              className="w-full rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 py-3 text-sm font-semibold text-white shadow-lg shadow-violet-500/25 transition-all duration-200 hover:from-violet-500 hover:to-purple-500 focus:outline-none focus:ring-2 focus:ring-violet-500/50 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {isLoading ? (
                 <span className="flex items-center justify-center gap-2">
@@ -223,330 +522,589 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
             </button>
           </form>
 
-          {/* Footer links */}
-          <div className="mt-6 flex items-center justify-between text-xs">
-            <button className="text-violet-400 transition-colors hover:text-violet-300">
-              Esqueceu a senha?
-            </button>
-            <button className="text-violet-400 transition-colors hover:text-violet-300">
-              Criar conta
-            </button>
-          </div>
-
-          {/* Divider */}
-          <div className="mt-6 flex items-center gap-3">
-            <div className="flex-1 border-t border-violet-700/30" />
-            <span className="text-[10px] text-violet-600">ou continue com</span>
-            <div className="flex-1 border-t border-violet-700/30" />
-          </div>
-
-          {/* Social login buttons */}
-          <div className="mt-4 grid grid-cols-2 gap-3">
-            <button className="flex items-center justify-center gap-2 rounded-xl border border-violet-700/50 bg-violet-900/30 py-2.5 text-xs font-medium text-violet-300 transition-all duration-200 hover:bg-violet-900/50 hover:border-violet-600/50">
-              <svg className="size-4" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12.48 10.92v3.28h7.84c-.24 1.84-.853 3.187-1.787 4.133-1.147 1.147-2.933 2.4-6.053 2.4-4.827 0-8.6-3.893-8.6-8.72s3.773-8.72 8.6-8.72c2.6 0 4.507 1.027 5.907 2.347l2.307-2.307C18.747 1.44 16.133 0 12.48 0 5.876 0 .307 5.387.307 12s5.57 12 12.173 12c3.573 0 6.267-1.173 8.373-3.36 2.16-2.16 2.84-5.213 2.84-7.667 0-.76-.053-1.467-.173-2.053H12.48z"/>
-              </svg>
-              Google
-            </button>
-            <button className="flex items-center justify-center gap-2 rounded-xl border border-violet-700/50 bg-violet-900/30 py-2.5 text-xs font-medium text-violet-300 transition-all duration-200 hover:bg-violet-900/50 hover:border-violet-600/50">
-              <svg className="size-4" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
-              </svg>
-              GitHub
-            </button>
-          </div>
+          {/* Footer */}
+          <p className="mt-6 text-center text-xs text-violet-600">
+            Ao continuar, você concorda com nossos termos de uso
+          </p>
         </div>
-
-        {/* Terms */}
-        <p className="mt-4 text-center text-[10px] text-violet-600">
-          Ao continuar, você concorda com nossos{" "}
-          <button className="underline transition-colors hover:text-violet-400">Termos de Uso</button>
-          {" "}e{" "}
-          <button className="underline transition-colors hover:text-violet-400">Política de Privacidade</button>
-        </p>
       </div>
     </div>
   );
 }
 
-export function Chat() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+// ─── File Upload Component ───
+interface FileUploadProps {
+  onFilesSelected: (files: File[]) => void;
+  isUploading: boolean;
+  uploadProgress: number;
+}
 
-  const {
-    activeProject,
-    messages,
-    sendMessage,
-    runs,
-    activeRun,
-    attachments,
-    addFiles,
-    removeAttachment,
-  } = useMsk();
-  const { ensureActive } = useLicense();
-  const [text, setText] = useState("");
-  const [sending, setSending] = useState(false);
-  const [blocked, setBlocked] = useState(false);
-  const endRef = useRef<HTMLDivElement>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
-  const recRef = useRef<any>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const [listening, setListening] = useState(false);
-  const [voiceError, setVoiceError] = useState<string | null>(null);
+function FileUpload({ onFilesSelected, isUploading, uploadProgress }: FileUploadProps) {
+  const [isDragging, setIsDragging] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  // Show login screen if not logged in
-  if (!isLoggedIn) {
-    return <LoginScreen onLogin={() => setIsLoggedIn(true)} />;
-  }
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  }, []);
 
-  const stopStream = () => {
-    streamRef.current?.getTracks().forEach((t) => t.stop());
-    streamRef.current = null;
-  };
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  }, []);
 
-  async function toggleDictation() {
-    if (listening) {
-      recRef.current?.stop();
-      stopStream();
-      return;
-    }
-    const Ctor =
-      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!Ctor) {
-      setVoiceError("Seu navegador não suporta transcrição por voz.");
-      return;
-    }
-    try {
-      streamRef.current = await navigator.mediaDevices.getUserMedia({ audio: true });
-    } catch {
-      setVoiceError("É preciso liberar o microfone para transcrever por voz.");
-      return;
-    }
-    const rec = new Ctor();
-    rec.lang = "pt-BR";
-    rec.continuous = true;
-    rec.interimResults = true;
-    let base = "";
-    rec.onstart = () => {
-      base = text ? text.trim() + " " : "";
-      setVoiceError(null);
-      setListening(true);
-    };
-    rec.onresult = (event: any) => {
-      let out = "";
-      for (let i = event.resultIndex; i < event.results.length; i += 1) {
-        out += event.results[i][0].transcript;
-      }
-      setText((base + out).replace(/\s+/g, " ").trimStart());
-      if (event.results[event.results.length - 1].isFinal) {
-        base = (base + out).replace(/\s+/g, " ") + " ";
-      }
-    };
-    rec.onerror = () => {
-      setVoiceError("Não foi possível capturar o áudio. Verifique o microfone.");
-      setListening(false);
-      stopStream();
-    };
-    rec.onend = () => {
-      setListening(false);
-      stopStream();
-    };
-    recRef.current = rec;
-    rec.start();
-  }
-
-  useEffect(
-    () => () => {
-      recRef.current?.stop?.();
-      streamRef.current?.getTracks().forEach((t) => t.stop());
-    },
-    [],
-  );
-
-  useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages.length, runs.length, activeRun?.status]);
-
-  const lastFinished = useMemo(
-    () => runs.find((r) => r.status === "done") ?? null,
-    [runs],
-  );
-
-  async function submit() {
-    if (!text.trim() || !activeProject) return;
-    setSending(true);
-    if (!(await ensureActive())) {
-      setBlocked(true);
-      setSending(false);
-      return;
-    }
-    setBlocked(false);
-    const value = text;
-    setText("");
-    await sendMessage(value);
-    setSending(false);
-  }
-
-  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (e.key === "Enter" && !e.shiftKey) {
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
       e.preventDefault();
-      submit();
-    }
-  }
+      setIsDragging(false);
+      const files = Array.from(e.dataTransfer.files);
+      if (files.length > 0) {
+        onFilesSelected(files);
+      }
+    },
+    [onFilesSelected]
+  );
 
-  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(e.target.files ?? []);
-    if (!files.length) return;
-    await addFiles(files);
-    if (fileRef.current) fileRef.current.value = "";
-  }
+  const handleFileChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = e.target.files ? Array.from(e.target.files) : [];
+      if (files.length > 0) {
+        onFilesSelected(files);
+      }
+      // Reset input
+      if (inputRef.current) {
+        inputRef.current.value = "";
+      }
+    },
+    [onFilesSelected]
+  );
 
   return (
-    <div className="relative flex min-h-0 flex-1 flex-col bg-violet-950">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 bg-cover bg-center opacity-20"
-        style={{ backgroundImage: `url(${chatBgAsset.url})` }}
+    <div
+      className={`relative rounded-xl border-2 border-dashed p-6 text-center transition-all ${
+        isDragging
+          ? "border-violet-500 bg-violet-900/30"
+          : "border-violet-700/40 bg-violet-950/20"
+      }`}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      <input
+        ref={inputRef}
+        type="file"
+        multiple
+        onChange={handleFileChange}
+        className="hidden"
+        id="file-upload"
+        accept="image/*,.pdf,.doc,.docx,.txt"
+        disabled={isUploading}
       />
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-violet-950/80 via-violet-950/90 to-violet-950/95" aria-hidden />
-      
-      <div className="relative z-10 flex items-center justify-between border-b border-violet-800/50 bg-violet-950/90 p-3">
-        <h1 className="text-sm font-medium text-orange-400">
-          Central completa de edição dos seus projetos: chat com o agente, preview real, projetos Lovable, GitHub, anexos, histórico e publicação.
-        </h1>
-        <button
-          onClick={() => setIsLoggedIn(false)}
-          className="flex items-center gap-1.5 rounded-lg border border-violet-700/50 bg-violet-900/50 px-3 py-1.5 text-xs text-violet-300 transition-all hover:bg-violet-800/50 hover:text-violet-200"
-        >
-          <X className="size-3" />
-          Sair
-        </button>
-      </div>
+      <label
+        htmlFor="file-upload"
+        className={`flex flex-col items-center gap-3 cursor-pointer ${
+          isUploading ? "pointer-events-none opacity-50" : ""
+        }`}
+      >
+        <div className="flex size-12 items-center justify-center rounded-full bg-violet-900/50">
+          <Paperclip className="size-5 text-violet-400" />
+        </div>
+        <div>
+          <p className="text-sm text-violet-300">
+            {isDragging ? "Solte os arquivos aqui" : "Arraste arquivos ou clique para selecionar"}
+          </p>
+          <p className="mt-1 text-xs text-violet-600">
+            Imagens, PDF, DOC, TXT (máx. 10MB)
+          </p>
+        </div>
+      </label>
 
-      <div className="msk-scroll relative flex-1 space-y-3 overflow-y-auto p-3 bg-transparent">
-        {messages.length === 0 && !activeRun && !sending && (
-          <div className="msk-panel bg-violet-900 border border-violet-800 p-4 text-xs text-violet-200">
-            <p className="mb-2 font-medium text-violet-100">Peça uma alteração no seu projeto</p>
-            <ul className="space-y-1">
-              <li>"Mude o fundo da home para preto."</li>
-              <li>"Coloque essa imagem no banner."</li>
-              <li>"Corrija o erro deste print."</li>
-              <li>"Crie uma nova página de planos."</li>
-            </ul>
+      {/* Upload Progress */}
+      {isUploading && (
+        <div className="mt-4">
+          <div className="mb-1 flex justify-between text-xs">
+            <span className="text-violet-400">Enviando...</span>
+            <span className="text-violet-500">{uploadProgress}%</span>
           </div>
-        )}
-
-        {messages.map((m) => (
-          <div
-            key={m.id}
-            className={`max-w-[92%] rounded-xl px-3 py-2 text-sm ${
-              m.role === "user"
-                ? "ml-auto bg-violet-800 text-violet-100"
-                : "bg-violet-900/80 text-violet-200"
-            }`}
-          >
-            {m.content}
-          </div>
-        ))}
-
-        {activeRun && <RunProgress run={activeRun} />}
-        {lastFinished && <RunCard run={lastFinished} />}
-        {sending && (
-          <div className="flex items-center gap-2 text-xs text-violet-400">
-            <Loader2 className="size-4 animate-spin" />
-            <span>Enviando mensagem...</span>
-          </div>
-        )}
-        {blocked && (
-          <div className="msk-panel border border-amber-700/50 bg-amber-900/30 p-3">
-            <p className="flex items-center gap-2 text-xs text-amber-400">
-              <TriangleAlert className="size-4" />
-              Sua licença não está ativa. Upgrade necessário para continuar.
-            </p>
-          </div>
-        )}
-        <div ref={endRef} />
-      </div>
-
-      {/* Attachments bar */}
-      {attachments.length > 0 && (
-        <div className="relative z-10 border-t border-violet-800/50 bg-violet-950/90 p-2">
-          <div className="flex flex-wrap gap-2">
-            {attachments.map((a) => (
-              <div
-                key={a.id}
-                className="flex items-center gap-1.5 rounded-lg border border-violet-700/50 bg-violet-900/60 px-2 py-1 text-xs text-violet-300"
-              >
-                <FileText className="size-3.5" />
-                <span className="max-w-[120px] truncate">{a.name}</span>
-                <button
-                  onClick={() => removeAttachment(a.id)}
-                  className="ml-1 rounded p-0.5 text-violet-500 transition-colors hover:bg-violet-800 hover:text-violet-300"
-                >
-                  <X className="size-3" />
-                </button>
-              </div>
-            ))}
+          <div className="h-1.5 overflow-hidden rounded-full bg-violet-950">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-violet-600 to-purple-500 transition-all duration-300"
+              style={{ width: `${uploadProgress}%` }}
+            />
           </div>
         </div>
       )}
+    </div>
+  );
+}
 
-      {/* Input area */}
-      <div className="relative z-10 border-t border-violet-800/50 bg-violet-950/90 p-3">
-        {voiceError && (
-          <div className="mb-2 flex items-center gap-2 text-xs text-red-400">
-            <TriangleAlert className="size-3.5" />
-            {voiceError}
+// ─── Message Bubble ───
+interface Message {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  timestamp: Date;
+  attachments?: Attachment[];
+}
+
+function MessageBubble({ message }: { message: Message }) {
+  const isUser = message.role === "user";
+
+  return (
+    <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
+      <div
+        className={`max-w-[80%] rounded-2xl px-4 py-3 ${
+          isUser
+            ? "rounded-br-md bg-gradient-to-br from-violet-600 to-purple-600 text-white"
+            : "rounded-bl-md border border-violet-800/50 bg-violet-950/60 text-violet-100"
+        }`}
+      >
+        <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
+        <p
+          className={`mt-1 text-[10px] ${
+            isUser ? "text-violet-200/60" : "text-violet-600"
+          }`}
+        >
+          {message.timestamp.toLocaleTimeString("pt-BR", {
+            hour: "2-digit",
+            minute: "2-digit",
+          })}
+        </p>
+
+        {/* Attachments in message */}
+        {message.attachments && message.attachments.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-2">
+            {message.attachments.map((att) => (
+              <div
+                key={att.id}
+                className="flex items-center gap-1.5 rounded-lg bg-white/10 px-2 py-1"
+              >
+                <Paperclip className="size-3 text-white/70" />
+                <span className="text-xs text-white/90">{att.name}</span>
+              </div>
+            ))}
           </div>
-        )}
-        <div className="relative flex items-end gap-2">
-          <button
-            onClick={() => fileRef.current?.click()}
-            className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-violet-700/50 bg-violet-900/50 text-violet-400 transition-all hover:bg-violet-800 hover:text-violet-300"
-            title="Anexar arquivos"
-          >
-            <Paperclip className="size-4" />
-          </button>
-          <input
-            ref={fileRef}
-            type="file"
-            multiple
-            className="hidden"
-            onChange={handleFileChange}
-          />
-          <textarea
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            onKeyDown={handleKeyDown}
-            rows={1}
-            placeholder="Descreva a alteração que deseja..."
-            className="msk-input flex-1 resize-none rounded-xl border border-violet-700/50 bg-violet-900/50 py-2.5 pl-4 pr-12 text-sm text-white placeholder-violet-500 outline-none transition-all focus:border-violet-500 focus:ring-1 focus:ring-violet-500/30"
-            style={{ maxHeight: "120px" }}
-          />
-          <button
-            onClick={toggleDictation}
-            className={`flex size-9 shrink-0 items-center justify-center rounded-lg border transition-all ${
-              listening
-                ? "border-red-500/50 bg-red-500/20 text-red-400"
-                : "border-violet-700/50 bg-violet-900/50 text-violet-400 hover:bg-violet-800 hover:text-violet-300"
-            }`}
-            title={listening ? "Parar transcrição" : "Transcrever por voz"}
-          >
-            {listening ? <Square className="size-4" /> : <Mic className="size-4" />}
-          </button>
-          <button
-            onClick={submit}
-            disabled={!text.trim() || sending || !activeProject}
-            className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-violet-600 to-purple-600 text-white transition-all hover:from-violet-500 hover:to-purple-500 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            {sending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
-          </button>
-        </div>
-        {!activeProject && (
-          <p className="mt-1.5 text-[11px] text-amber-500">
-            Nenhum projeto selecionado. Escolha um projeto na barra lateral.
-          </p>
         )}
       </div>
     </div>
   );
 }
+
+// ─── Chat Interface ───
+function ChatInterface() {
+  const { license } = useLicense();
+  const msk = useMsk();
+  const [input, setInput] = useState("");
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [previewContent, setPreviewContent] = useState<string | null>(null);
+  const [isUpdatingPreview, setIsUpdatingPreview] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: "error" | "success" | "info" } | null>(
+    null
+  );
+  const [currentRun, setCurrentRun] = useState<MskRun | null>(null);
+  const [completedRuns, setCompletedRuns] = useState<MskRun[]>([]);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Auto-scroll to bottom
+  const scrollToBottom = useCallback(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, []);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, scrollToBottom]);
+
+  // Debounced preview update
+  const debouncedPreviewUpdate = useDebounceCallback(
+    useCallback(
+      async (attachmentId: string) => {
+        const attachment = attachments.find((a) => a.id === attachmentId);
+        if (!attachment) return;
+
+        setIsUpdatingPreview(true);
+        setPreviewError(null);
+
+        try {
+          const result = await AttachmentService.getPreview(attachment);
+          setPreviewContent(result.html);
+        } catch (err) {
+          const message = err instanceof Error ? err.message : "Erro ao buscar prévia";
+          setPreviewError(message);
+          setToast({ message: "Não foi possível atualizar a prévia", type: "error" });
+        } finally {
+          setIsUpdatingPreview(false);
+        }
+      },
+      [attachments]
+    ),
+    500
+  ),
+    500
+  );
+
+  // Handle file selection
+  const handleFilesSelected = useCallback(
+    async (files: File[]) => {
+      setIsUploading(true);
+      setUploadProgress(0);
+
+      const newAttachments: Attachment[] = files.map((file) => ({
+        id: `${Date.now()}-${file.name}`,
+        name: file.name,
+        type: file.type,
+        size: file.size,
+        status: "uploading" as const,
+        file,
+        preview: file.type.startsWith("image/") ? URL.createObjectURL(file) : undefined,
+      }));
+
+      setAttachments((prev) => [...prev, ...newAttachments]);
+
+      try {
+        for (let i = 0; i < files.length; i++) {
+          setUploadProgress(Math.round(((i + 1) / files.length) * 100));
+          const uploaded = await AttachmentService.upload(files[i], {
+            onProgress: (pct) => {
+              setUploadProgress(Math.round((pct / 100) * ((i + 1) / files.length) * 100));
+            },
+          });
+
+          setAttachments((prev) =>
+            prev.map((att) =>
+              att.id === newAttachments[i].id
+                ? { ...att, id: uploaded.id, status: "ready" as const, url: uploaded.url }
+                : att
+            )
+          );
+        }
+
+        setToast({ message: `${files.length} arquivo(s) enviado(s) com sucesso`, type: "success" });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Erro ao enviar arquivos";
+        setToast({ message, type: "error" });
+        setAttachments((prev) =>
+          prev.map((att) => (att.status === "uploading" ? { ...att, status: "error" as const } : att))
+        );
+      } finally {
+        setIsUploading(false);
+        setUploadProgress(0);
+      }
+    },
+    []
+  );
+
+  // Handle attachment removal
+  const handleRemoveAttachment = useCallback(
+    async (id: string) => {
+      const attachment = attachments.find((a) => a.id === id);
+      if (attachment?.url) {
+        try {
+          await AttachmentService.delete(attachment.id);
+        } catch {
+          // Silent fail - file might already be deleted on server
+        }
+      }
+      setAttachments((prev) => prev.filter((a) => a.id !== id));
+    },
+    [attachments]
+  );
+
+  // Handle preview update
+  const handlePreviewUpdate = useCallback(
+    async (id: string) => {
+      try {
+        await debouncedPreviewUpdate(id);
+      } catch (err) {
+        throw new Error("Não foi possível atualizar a prévia");
+      }
+    },
+    [debouncedPreviewUpdate]
+  );
+
+  // Handle message submission
+  const handleSubmit = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+
+      const trimmedInput = input.trim();
+      if (!trimmedInput && attachments.length === 0) return;
+
+      const userMessage: Message = {
+        id: `msg-${Date.now()}`,
+        role: "user",
+        content: trimmedInput,
+        timestamp: new Date(),
+        attachments: [...attachments],
+      };
+
+      setMessages((prev) => [...prev, userMessage]);
+      setInput("");
+      setIsGenerating(true);
+      setPreviewError(null);
+
+      // Simulate run creation
+      const run: MskRun = {
+        id: `run-${Date.now()}`,
+        status: "running",
+        step: "receiving",
+        created_at: new Date().toISOString(),
+      };
+      setCurrentRun(run);
+
+      // Simulate progress
+      const steps = ["receiving", "processing", "generating", "finalizing"] as const;
+      for (let i = 0; i < steps.length; i++) {
+        await new Promise((r) => setTimeout(r, 800));
+        setCurrentRun((prev) =>
+          prev ? { ...prev, step: steps[i], status: i === steps.length - 1 ? "done" : "running" } : null
+        );
+        if (i === steps.length - 1) {
+          setCompletedRuns((prev) => [
+            ...prev,
+            {
+              ...run,
+              status: "done",
+              step: steps[i],
+              summary: "Prévia atualizada com sucesso",
+              created_at: new Date().toISOString(),
+            },
+          ]);
+        }
+      }
+
+      // Generate assistant response
+      const assistantMessage: Message = {
+        id: `msg-${Date.now()}-assistant`,
+        role: "assistant",
+        content: "Aqui está a prévia atualizada do seu projeto. As alterações foram aplicadas conforme solicitado.",
+        timestamp: new Date(),
+      };
+
+      setMessages((prev) => [...prev, assistantMessage]);
+      setAttachments([]);
+      setIsGenerating(false);
+      setCurrentRun(null);
+      setToast({ message: "Prévia atualizada com sucesso!", type: "success" });
+    },
+    [input, attachments]
+  );
+
+  // Auto-resize textarea
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 150)}px`;
+    }
+  }, [input]);
+
+  const readyAttachments = attachments.filter((a) => a.status === "ready");
+
+  return (
+    <div className="flex h-screen flex-col bg-gradient-to-br from-violet-950 via-purple-950 to-indigo-950">
+      {/* Header */}
+      <header className="flex shrink-0 items-center justify-between border-b border-violet-800/40 bg-violet-950/80 px-6 py-4 backdrop-blur-sm">
+        <div className="flex items-center gap-3">
+          <div className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600 to-purple-600">
+            <Sparkles className="size-5 text-white" />
+          </div>
+          <div>
+            <h1 className="text-lg font-semibold text-white">MSK Studio</h1>
+            <p className="text-xs text-violet-400">
+              {license ? `Plano ${license.plan}` : "Carregando..."}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="rounded-full bg-emerald-900/50 px-3 py-1 text-xs text-emerald-400">
+            {license?.credits ?? 0} créditos
+          </span>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Chat Panel */}
+        <div className="flex flex-1 flex-col border-r border-violet-800/40">
+          {/* Messages */}
+          <div className="flex-1 overflow-y-auto p-6">
+            {messages.length === 0 ? (
+              <div className="flex h-full flex-col items-center justify-center text-center">
+                <div className="mb-6 flex size-20 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-600/20 to-purple-600/20">
+                  <Sparkles className="size-10 text-violet-400" />
+                </div>
+                <h2 className="mb-2 text-xl font-semibold text-white">
+                  Bem-vindo ao MSK Studio
+                </h2>
+                <p className="max-w-md text-sm text-violet-400">
+                  Envie uma mensagem ou anexe arquivos para começar a criar
+                  prévias incríveis com inteligência artificial.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {messages.map((msg) => (
+                  <MessageBubble key={msg.id} message={msg} />
+                ))}
+                <div ref={messagesEndRef} />
+              </div>
+            )}
+
+            {/* Current Run Progress */}
+            {currentRun && (
+              <div className="mt-4">
+                <RunProgress run={currentRun} />
+              </div>
+            )}
+
+            {/* Completed Runs */}
+            {completedRuns.length > 0 && (
+              <div className="mt-4 space-y-3">
+                {completedRuns.map((run) => (
+                  <RunCard key={run.id} run={run} />
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Attachments Preview */}
+          {attachments.length > 0 && (
+            <div className="border-t border-violet-800/40 bg-violet-950/60 p-4">
+              <p className="mb-3 text-xs font-medium text-violet-400">
+                Anexos ({attachments.length})
+              </p>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {attachments.map((file) => (
+                  <AttachmentPreview
+                    key={file.id}
+                    file={file}
+                    onRemove={handleRemoveAttachment}
+                    onPreviewUpdate={handlePreviewUpdate}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Input Area */}
+          <div className="border-t border-violet-800/40 bg-violet-950/80 p-4">
+            <form onSubmit={handleSubmit} className="flex items-end gap-3">
+              <div className="relative flex-1">
+                <textarea
+                  ref={textareaRef}
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  placeholder="Descreva o que você quer criar..."
+                  rows={1}
+                  disabled={isGenerating}
+                  className="w-full resize-none rounded-xl border border-violet-700/50 bg-violet-900/50 px-4 py-3 pr-12 text-sm text-white placeholder-violet-500 outline-none transition-all duration-200 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/25 disabled:cursor-not-allowed disabled:opacity-50"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSubmit(e as unknown as React.FormEvent);
+                    }
+                  }}
+                />
+                <button
+                  type="button"
+                  className="absolute bottom-3 right-3 text-violet-500 transition-colors hover:text-violet-400 disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={isGenerating || isUploading}
+                  aria-label="Anexar arquivo"
+                >
+                  <Paperclip className="size-5" />
+                </button>
+              </div>
+              <button
+                type="submit"
+                disabled={isGenerating || isUploading || (!input.trim() && attachments.length === 0)}
+                className="flex size-12 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600 to-purple-600 text-white shadow-lg shadow-violet-500/25 transition-all duration-200 hover:from-violet-500 hover:to-purple-500 disabled:cursor-not-allowed disabled:opacity-50"
+                aria-label="Enviar mensagem"
+              >
+                {isGenerating ? (
+                  <Loader2 className="size-5 animate-spin" />
+                ) : (
+                  <Send className="size-5" />
+                )}
+              </button>
+            </form>
+          </div>
+        </div>
+
+        {/* Preview Panel */}
+        <div className="hidden w-1/2 flex-col border-l border-violet-800/40 p-4 lg:flex">
+          <Preview
+            content={previewContent}
+            isUpdating={isUpdatingPreview}
+            updateError={previewError}
+            onRetry={() => {
+              if (readyAttachments.length > 0) {
+                handlePreviewUpdate(readyAttachments[0].id);
+              }
+            }}
+          />
+        </div>
+      </div>
+
+      {/* Toast Notification */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+// ─── Main Chat Component ───
+export function Chat() {
+  const { license, isLoading } = useLicense();
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  // Check for existing session
+  useEffect(() => {
+    const session = localStorage.getItem("msk_session");
+    if (session) {
+      setIsAuthenticated(true);
+    }
+  }, []);
+
+  const handleLogin = useCallback(() => {
+    localStorage.setItem("msk_session", "active");
+    setIsAuthenticated(true);
+  }, []);
+
+  const handleLogout = useCallback(() => {
+    localStorage.removeItem("msk_session");
+    setIsAuthenticated(false);
+  }, []);
+
+  if (isLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-gradient-to-br from-violet-950 via-purple-950 to-indigo-950">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="size-10 animate-spin text-violet-400" />
+          <p className="text-sm text-violet-400">Carregando...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <LoginScreen onLogin={handleLogin} />;
+  }
+
+  return (
+    <div>
+      <ChatInterface />
+    </div>
+  );
+}
+
+export default Chat;
