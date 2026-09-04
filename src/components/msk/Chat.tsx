@@ -133,17 +133,17 @@ export function Chat() {
   }
 
   return (
-    <div className="relative flex min-h-0 flex-1 flex-col">
+    <div className="relative flex min-h-0 flex-1 flex-col bg-black">
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 bg-cover bg-center opacity-25"
+        className="pointer-events-none absolute inset-0 bg-cover bg-center opacity-20"
         style={{ backgroundImage: `url(${chatBgAsset.url})` }}
       />
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/70 via-black/40 to-black/80" aria-hidden />
-      <div className="msk-scroll relative flex-1 space-y-3 overflow-y-auto p-3">
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/80 via-neutral-950/90 to-black/95" aria-hidden />
+      <div className="msk-scroll relative flex-1 space-y-3 overflow-y-auto p-3 bg-transparent">
         {messages.length === 0 && !activeRun && !sending && (
-          <div className="msk-panel p-4 text-xs text-muted-foreground">
-            <p className="mb-2 font-medium text-foreground">Peça uma alteração no seu projeto</p>
+          <div className="msk-panel bg-neutral-900 border border-neutral-800 p-4 text-xs text-neutral-400">
+            <p className="mb-2 font-medium text-neutral-200">Peça uma alteração no seu projeto</p>
             <ul className="space-y-1">
               <li>"Mude o fundo da home para preto."</li>
               <li>"Coloque essa imagem no banner."</li>
@@ -158,8 +158,8 @@ export function Chat() {
             key={m.id}
             className={`max-w-[92%] rounded-xl px-3 py-2 text-sm ${
               m.role === "user"
-                ? "ml-auto bg-secondary"
-                : "msk-panel bg-surface"
+                ? "ml-auto bg-neutral-800 text-neutral-100"
+                : "bg-neutral-900 border border-neutral-800 text-neutral-200"
             }`}
           >
             <p className="whitespace-pre-wrap break-words">{m.content}</p>
@@ -168,7 +168,7 @@ export function Chat() {
                 {m.attachments.map((a) => (
                   <li
                     key={a.id}
-                    className="flex items-center gap-1 rounded-md bg-background/60 px-1.5 py-0.5 text-[10px] text-muted-foreground"
+                    className="flex items-center gap-1 rounded-md bg-neutral-800/60 px-1.5 py-0.5 text-[10px] text-neutral-400"
                   >
                     <FileText className="size-3" />
                     {a.name}
@@ -176,7 +176,7 @@ export function Chat() {
                 ))}
               </ul>
             )}
-            <p className="mt-1 text-[10px] text-muted-foreground">{timeAgo(m.created_at)}</p>
+            <p className="mt-1 text-[10px] text-neutral-500">{timeAgo(m.created_at)}</p>
           </div>
         ))}
 
@@ -210,92 +210,160 @@ export function Chat() {
       )}
 
       {attachments.length > 0 && (
-        <ul className="flex flex-wrap gap-1.5 border-t border-border px-3 py-2">
+        <ul className="flex flex-wrap gap-1.5 border-t border-neutral-800 bg-black/50 px-3 py-2">
           {attachments.map((a) => (
             <li
               key={a.id}
-              className="msk-panel flex items-center gap-1.5 px-2 py-1 text-[11px]"
+              className="flex items-center gap-1.5 rounded-lg bg-neutral-900 border border-neutral-800 px-2 py-1 text-[11px] text-neutral-300"
             >
-              <FileText className="size-3 text-muted-foreground" />
+              <FileText className="size-3 text-neutral-500" />
               <span className="max-w-[120px] truncate">{a.name}</span>
-              <span className="text-[10px] uppercase tracking-wide text-primary">
+              <span className="text-[10px] uppercase tracking-wide text-neutral-400">
                 {labelForStatus(a.status)}
               </span>
               <button type="button" onClick={() => removeAttachment(a.id)} aria-label="Remover">
-                <X className="size-3 text-muted-foreground" />
+                <X className="size-3 text-neutral-500 hover:text-neutral-300" />
               </button>
             </li>
           ))}
         </ul>
       )}
 
-      <div className="border-t border-border p-3">
-        <div className="msk-panel flex items-end gap-2 p-2">
+      <div className="border-t border-neutral-800 bg-black p-3">
+        <div className="flex items-end gap-2 rounded-xl border border-neutral-800 bg-neutral-900 p-2">
           <button
             type="button"
             onClick={() => fileRef.current?.click()}
             aria-label="Anexar arquivo"
-            className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground"
+            className="rounded-md p-1.5 text-neutral-500 hover:bg-neutral-800 hover:text-neutral-300"
           >
             <Paperclip className="size-4" />
           </button>
           <input
+            ref={fileRef}
             type="file"
             multiple
             className="hidden"
-            ref={fileRef}
             onChange={(e) => {
               const files = Array.from(e.target.files ?? []);
               if (files.length) addFiles(files);
               e.target.value = "";
             }}
           />
-          <div className="msk-panel flex-1 rounded-md">
-            <textarea
-              className="msk-scroll w-full resize-none bg-transparent px-2 py-1.5 text-sm outline-none placeholder:text-muted-foreground"
-              placeholder="Descreva o que você quer..."
-              rows={1}
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  submit();
-                }
-              }}
-              onInput={(e) => {
-                const el = e.currentTarget;
-                el.style.height = "auto";
-                el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
-              }}
-            />
-          </div>
+          <textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                void submit();
+              }
+            }}
+            placeholder="Descreva o que você quer..."
+            rows={1}
+            className="msk-scroll flex-1 resize-none bg-transparent text-sm text-neutral-200 placeholder:text-neutral-600 focus:outline-none"
+            style={{ maxHeight: "128px" }}
+          />
           <button
             type="button"
             onClick={toggleDictation}
-            aria-label={listening ? "Parar transcrição" : "Iniciar transcrição"}
-            className={`rounded-md p-1.5 transition-colors ${
+            aria-label="Transcrever voz"
+            className={`rounded-md p-1.5 ${
               listening
-                ? "bg-green-500/20 text-green-500"
-                : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                ? "bg-red-500/20 text-red-400 animate-pulse"
+                : "text-neutral-500 hover:bg-neutral-800 hover:text-neutral-300"
             }`}
           >
-            {listening ? <Square className="size-4" /> : <Mic className="size-4" />}
+            <Mic className="size-4" />
           </button>
           <button
             type="button"
-            onClick={submit}
-            disabled={!text.trim() || sending || !activeProject}
+            onClick={() => void submit()}
+            disabled={!text.trim() || sending}
             aria-label="Enviar mensagem"
-            className="rounded-md bg-primary p-1.5 text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded-md bg-neutral-800 p-1.5 text-neutral-400 hover:bg-neutral-700 hover:text-neutral-200 disabled:opacity-40"
           >
             {sending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
           </button>
         </div>
         {voiceError && (
-          <p className="mt-1 text-[11px] text-green-500">{voiceError}</p>
+          <p className="mt-1.5 text-[11px] text-red-400">{voiceError}</p>
         )}
       </div>
+    </div>
+  );
+}
+
+function labelForStatus(s: string) {
+  if (s === "uploading") return "Enviando...";
+  if (s === "processing") return "Processando...";
+  if (s === "ready") return "Pronto";
+  return s;
+}
+
+function RunProgress({ run }: { run: MskRun }) {
+  const { cancelRun } = useMsk();
+  const current = RUN_STEPS.indexOf(run.step as any);
+
+  return (
+    <div className="msk-panel bg-neutral-900 border border-neutral-800 p-4">
+      <div className="mb-3 flex items-center justify-between text-xs">
+        <span className="text-neutral-400">Executando: {run.step}</span>
+        {run.status === "running" && (
+          <button
+            type="button"
+            onClick={cancelRun}
+            className="flex items-center gap-1 rounded-md bg-neutral-800 px-2 py-1 text-neutral-400 hover:bg-neutral-700 hover:text-neutral-200"
+          >
+            <Square className="size-3" /> Parar
+          </button>
+        )}
+      </div>
+      <div className="flex gap-1">
+        {RUN_STEPS.map((step, i) => (
+          <div
+            key={step}
+            className={`h-1 flex-1 rounded-full ${
+              i < current
+                ? "bg-green-500"
+                : i === current
+                  ? "bg-neutral-500 animate-pulse"
+                  : "bg-neutral-800"
+            }`}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function RunCard({ run }: { run: MskRun }) {
+  return (
+    <div className="msk-panel bg-neutral-900 border border-neutral-800 p-4">
+      <div className="mb-3 flex items-center gap-2 text-xs text-green-500">
+        <CheckCircle2 className="size-3.5" />
+        <span>Execução concluída</span>
+      </div>
+      {run.steps.length > 0 && (
+        <ul className="space-y-1 text-xs text-neutral-400">
+          {run.steps.map((s, i) => (
+            <li key={i} className="flex items-start gap-2">
+              <span className="mt-0.5 size-1.5 shrink-0 rounded-full bg-neutral-600" />
+              {s}
+            </li>
+          ))}
+        </ul>
+      )}
+      {run.diff_url && (
+        <a
+          href={run.diff_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-3 inline-flex items-center gap-1.5 rounded-md bg-neutral-800 px-3 py-1.5 text-xs text-neutral-300 hover:bg-neutral-700 hover:text-neutral-100"
+        >
+          <ExternalLink className="size-3" /> Ver alterações
+        </a>
+      )}
     </div>
   );
 }
