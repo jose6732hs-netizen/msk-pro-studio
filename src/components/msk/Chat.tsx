@@ -19,6 +19,74 @@ import { useMsk } from "@/lib/msk/provider";
 import { AttachmentService } from "@/lib/msk/services";
 import { RUN_STEPS, timeAgo, type MskRun } from "@/lib/msk/core";
 
+function labelForStatus(s: string) {
+  if (s === "uploading") return "enviando";
+  if (s === "done") return "pronto";
+  if (s === "error") return "erro";
+  return s;
+}
+
+function RunProgress({ run }: { run: MskRun }) {
+  const step = RUN_STEPS[run.step] ?? run.step;
+  const pct = useMemo(() => {
+    if (run.status === "done") return 100;
+    if (run.status === "error") return 0;
+    const idx = RUN_STEPS.indexOf(run.step as any);
+    return Math.round(((idx + 0.5) / RUN_STEPS.length) * 100);
+  }, [run.step, run.status]);
+
+  return (
+    <div className="msk-panel border border-violet-700/60 bg-violet-900/80 p-4">
+      <div className="mb-2 flex items-center justify-between text-xs">
+        <span className="flex items-center gap-1.5 text-violet-300">
+          <CircleDashed className="size-3.5 animate-spin" />
+          {step}
+        </span>
+        {run.status === "done" ? (
+          <CheckCircle2 className="size-4 text-emerald-400" />
+        ) : (
+          <span className="text-violet-500">{pct}%</span>
+        )}
+      </div>
+      <div className="h-1.5 overflow-hidden rounded-full bg-violet-950">
+        <div
+          className="h-full rounded-full bg-gradient-to-r from-violet-600 to-violet-400 transition-all duration-500"
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      {run.error && (
+        <p className="mt-2 flex items-start gap-1.5 text-[11px] text-red-400">
+          <TriangleAlert className="mt-0.5 size-3 shrink-0" />
+          {run.error}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function RunCard({ run }: { run: MskRun }) {
+  const summary = run.summary ?? "Execução concluída.";
+  const createdAt = timeAgo(run.created_at);
+
+  return (
+    <div className="msk-panel border border-emerald-800/50 bg-emerald-950/40 p-3">
+      <div className="flex items-start gap-2">
+        <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-400" />
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-medium text-emerald-300">{summary}</p>
+          <p className="mt-1 text-[10px] text-emerald-600">{createdAt}</p>
+        </div>
+      </div>
+      {run.output && (
+        <div className="mt-2 flex items-center gap-1">
+          <ExternalLink className="size-3 text-emerald-500" />
+          <span className="text-[10px] text-emerald-500">Alterações aplicadas</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function Chat() {
   const {
     activeProject,
@@ -46,8 +114,6 @@ export function Chat() {
     streamRef.current = null;
   };
 
-  // Transcrição por voz (ditado): o texto cai direto na caixa de comando,
-  // com ondas de áudio reagindo ao volume da voz em tempo real.
   async function toggleDictation() {
     if (listening) {
       recRef.current?.stop();
@@ -119,7 +185,6 @@ export function Chat() {
   async function submit() {
     if (!text.trim() || !activeProject) return;
     setSending(true);
-    // Nova execução só começa com licença confirmada pelo SERVIDOR.
     if (!(await ensureActive())) {
       setBlocked(true);
       setSending(false);
@@ -130,6 +195,20 @@ export function Chat() {
     setText("");
     await sendMessage(value);
     setSending(false);
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      submit();
+    }
+  }
+
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    if (!files.length) return;
+    await addFiles(files);
+    if (fileRef.current) fileRef.current.value = "";
   }
 
   return (
@@ -234,7 +313,7 @@ export function Chat() {
           <button
             type="button"
             onClick={() => fileRef.current?.click()}
-            className="flex size-9 shrink-0 items-center justify-center rounded-lg text-violet-400 transition-colors hover:bg-violet-800 hover:text-violet-200"
+            className="flex size-9 shrink-0 items-center justify-center rounded-lg text-violet-500 transition-colors hover:bg-violet-800 hover:text-violet-300"
             aria-label="Anexar arquivo"
           >
             <Paperclip className="size-4" />
@@ -244,59 +323,52 @@ export function Chat() {
             type="file"
             multiple
             className="hidden"
-            onChange={async (e) => {
-              const files = Array.from(e.target.files ?? []);
-              if (!files.length) return;
-              await addFiles(files);
-              e.target.value = "";
-            }}
+            onChange={handleFileChange}
           />
           <textarea
-            ref={textRef}
             value={text}
             onChange={(e) => setText(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                submit();
-              }
-            }}
-            placeholder="Descreva o que você quer criar ou mudar..."
+            onKeyDown={handleKeyDown}
+            placeholder="Descreva o que você quer..."
             rows={1}
-            className="msk-scroll flex-1 resize-none rounded-lg bg-transparent px-3 py-2 text-sm text-violet-100 placeholder:text-violet-500 focus:outline-none"
-            style={{ minHeight: "2.25rem", maxHeight: "6rem" }}
+            className="msk-scroll flex-1 resize-none bg-transparent text-sm text-violet-100 placeholder-violet-600 outline-none"
+            style={{ minHeight: "36px", maxHeight: "120px" }}
           />
           <button
             type="button"
             onClick={toggleDictation}
-            className={`flex size-9 shrink-0 items-center justify-center rounded-lg transition-colors ${" "}${listening ? "bg-violet-700 text-violet-100" : "text-violet-400 hover:bg-violet-800 hover:text-violet-200"}`}
-            aria-label={listening ? "Parar transcrição" : "Iniciar transcrição por voz"}
+            className={`flex size-9 shrink-0 items-center justify-center rounded-lg transition-all ${
+              listening
+                ? "bg-violet-600 text-violet-100 shadow-lg shadow-violet-500/30"
+                : "text-violet-500 hover:bg-violet-800 hover:text-violet-300"
+            }`}
+            aria-label={listening ? "Parar ditado" : "Iniciar ditado por voz"}
           >
-            {listening ? (
-              <span className="relative flex size-4">
-                <span className="absolute inline-flex size-full animate-ping rounded-full bg-violet-400 opacity-75" />
-                <Mic className="relative z-10 size-4" />
-              </span>
-            ) : (
-              <Mic className="size-4" />
-            )}
+            <Mic className={`size-4 ${listening ? "animate-pulse" : ""}`} />
           </button>
           <button
             type="button"
             onClick={submit}
-            disabled={!text.trim() || !activeProject || sending}
+            disabled={!text.trim() || sending || !activeProject}
             className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-violet-700 text-violet-100 transition-all hover:bg-violet-600 disabled:cursor-not-allowed disabled:opacity-40"
             aria-label="Enviar mensagem"
           >
-            {sending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
+            {sending ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Send className="size-4" />
+            )}
           </button>
         </div>
         {voiceError && (
-          <p className="mt-1.5 flex items-center gap-1 text-[11px] text-violet-400">
+          <p className="mt-1.5 flex items-center gap-1 text-[11px] text-red-400">
             <TriangleAlert className="size-3" />
             {voiceError}
           </p>
         )}
+        <p className="mt-1.5 text-center text-[10px] text-violet-700">
+          AIO Studio — MSK Pro Edition
+        </p>
       </div>
     </div>
   );
