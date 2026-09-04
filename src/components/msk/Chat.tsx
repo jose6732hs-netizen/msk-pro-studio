@@ -145,10 +145,10 @@ export function Chat() {
           <div className="msk-panel p-4 text-xs text-muted-foreground">
             <p className="mb-2 font-medium text-foreground">Peça uma alteração no seu projeto</p>
             <ul className="space-y-1">
-              <li>“Mude o fundo da home para preto.”</li>
-              <li>“Coloque essa imagem no banner.”</li>
-              <li>“Corrija o erro deste print.”</li>
-              <li>“Crie uma nova página de planos.”</li>
+              <li>"Mude o fundo da home para preto."</li>
+              <li>"Coloque essa imagem no banner."</li>
+              <li>"Corrija o erro deste print."</li>
+              <li>"Crie uma nova página de planos."</li>
             </ul>
           </div>
         )}
@@ -187,7 +187,7 @@ export function Chat() {
           .map((r) => (
             <div
               key={r.id}
-              className="flex items-start gap-2 rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive"
+              className="flex items-start gap-2 rounded-xl border border-green-500/40 bg-green-500/10 p-3 text-xs text-green-500"
             >
               <TriangleAlert className="mt-0.5 size-3.5 shrink-0" />
               <span>
@@ -201,7 +201,7 @@ export function Chat() {
       </div>
 
       {blocked && (
-        <p className="border-t border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+        <p className="border-t border-green-500/40 bg-green-500/10 px-3 py-2 text-xs text-green-500">
           Sua licença expirou. Nenhuma nova execução foi iniciada.{" "}
           <a href="https://msksystem.online/planos?renovar=1" className="underline underline-offset-4">
             RENOVAR
@@ -240,228 +240,62 @@ export function Chat() {
             <Paperclip className="size-4" />
           </button>
           <input
-            ref={fileRef}
             type="file"
             multiple
-            accept={AttachmentService.accept}
             className="hidden"
+            ref={fileRef}
             onChange={(e) => {
-              if (e.target.files) void addFiles(e.target.files);
+              const files = Array.from(e.target.files ?? []);
+              if (files.length) addFiles(files);
               e.target.value = "";
             }}
           />
+          <div className="msk-panel flex-1 rounded-md">
+            <textarea
+              className="msk-scroll w-full resize-none bg-transparent px-2 py-1.5 text-sm outline-none placeholder:text-muted-foreground"
+              placeholder="Descreva o que você quer..."
+              rows={1}
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  submit();
+                }
+              }}
+              onInput={(e) => {
+                const el = e.currentTarget;
+                el.style.height = "auto";
+                el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
+              }}
+            />
+          </div>
           <button
             type="button"
             onClick={toggleDictation}
-            aria-label={listening ? "Parar transcrição" : "Enviar áudio para transcrever"}
-            title={listening ? "Parar e usar a transcrição" : "Falar (transcreve para a caixa de comando)"}
+            aria-label={listening ? "Parar transcrição" : "Iniciar transcrição"}
             className={`rounded-md p-1.5 transition-colors ${
               listening
-                ? "bg-destructive text-primary-foreground"
+                ? "bg-green-500/20 text-green-500"
                 : "text-muted-foreground hover:bg-secondary hover:text-foreground"
             }`}
           >
             {listening ? <Square className="size-4" /> : <Mic className="size-4" />}
           </button>
-          <textarea
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                void submit();
-              }
-            }}
-            rows={2}
-            placeholder="Peça uma alteração no seu projeto..."
-            className="msk-scroll max-h-32 flex-1 resize-none bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-          />
           <button
             type="button"
-            onClick={() => void submit()}
-            disabled={!text.trim() || !activeProject || sending}
-            className="rounded-lg bg-primary p-2 text-primary-foreground disabled:opacity-40"
-            aria-label="Enviar"
+            onClick={submit}
+            disabled={!text.trim() || sending || !activeProject}
+            aria-label="Enviar mensagem"
+            className="rounded-md bg-primary p-1.5 text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {sending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
           </button>
         </div>
-        {listening && streamRef.current && (
-          <div className="mt-2 overflow-hidden rounded-xl border border-destructive/40 bg-destructive/5">
-            <div className="flex items-center gap-2 px-3 pt-2">
-              <span className="size-1.5 animate-pulse rounded-full bg-destructive" />
-              <span className="text-[11px] font-medium text-destructive">
-                Ouvindo… o texto aparece na caixa acima enquanto você fala
-              </span>
-            </div>
-            <VoiceWave stream={streamRef.current} />
-          </div>
-        )}
-        {voiceError && <p className="mt-2 text-[11px] text-destructive">{voiceError}</p>}
-        {!activeProject && (
-          <p className="mt-2 text-[11px] text-muted-foreground">
-            Selecione um projeto para conversar com o MSK Agente.
-          </p>
+        {voiceError && (
+          <p className="mt-1 text-[11px] text-green-500">{voiceError}</p>
         )}
       </div>
     </div>
-  );
-}
-
-function VoiceWave({ stream }: { stream: MediaStream }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-
-  useEffect(() => {
-    const ctx = new AudioContext();
-    const source = ctx.createMediaStreamSource(stream);
-    const analyser = ctx.createAnalyser();
-    analyser.fftSize = 128;
-    analyser.smoothingTimeConstant = 0.75;
-    source.connect(analyser);
-    const data = new Uint8Array(analyser.frequencyBinCount);
-    let raf = 0;
-
-    const draw = () => {
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-      const g = canvas.getContext("2d");
-      if (!g) return;
-      const { width, height } = canvas;
-      analyser.getByteFrequencyData(data);
-      g.clearRect(0, 0, width, height);
-      const bars = 48;
-      const gap = 3;
-      const barW = (width - gap * (bars - 1)) / bars;
-      for (let i = 0; i < bars; i += 1) {
-        const v = (data[Math.floor((i / bars) * data.length)] ?? 0) / 255;
-        const h = Math.max(3, v * (height - 4));
-        const x = i * (barW + gap);
-        const y = (height - h) / 2;
-        const grad = g.createLinearGradient(0, y, 0, y + h);
-        grad.addColorStop(0, "#4ade80");
-        grad.addColorStop(1, "#16a34a");
-        g.fillStyle = grad;
-        g.beginPath();
-        g.roundRect(x, y, barW, h, barW / 2);
-        g.fill();
-      }
-      raf = requestAnimationFrame(draw);
-    };
-    raf = requestAnimationFrame(draw);
-
-    return () => {
-      cancelAnimationFrame(raf);
-      source.disconnect();
-      analyser.disconnect();
-      void ctx.close();
-    };
-  }, [stream]);
-
-  return <canvas ref={canvasRef} width={560} height={56} className="block h-14 w-full" aria-hidden />;
-}
-
-function labelForStatus(status: string) {
-  const map: Record<string, string> = {
-    received: "Recebido",
-    reading: "Lendo",
-    analyzed: "Analisado",
-    ready: "Pronto",
-    error: "Erro",
-  };
-  return map[status] ?? status;
-}
-
-export function RunProgress({ run }: { run: MskRun }) {
-  const steps = run.steps.length ? run.steps : RUN_STEPS.map((s) => ({ ...s, status: "pending" as const }));
-  return (
-    <div className="msk-panel p-3">
-      <div className="mb-2 flex items-center gap-2 text-xs">
-        <span className="msk-dot-pulse size-2 rounded-full bg-primary" />
-        <span className="font-medium">MSK executando</span>
-      </div>
-      <ol className="space-y-1">
-        {steps.map((s) => (
-          <li key={s.key} className="flex items-center gap-2 text-xs">
-            {s.status === "done" ? (
-              <CheckCircle2 className="size-3.5 text-primary" />
-            ) : s.status === "running" ? (
-              <Loader2 className="size-3.5 animate-spin text-azure" />
-            ) : s.status === "error" ? (
-              <TriangleAlert className="size-3.5 text-destructive" />
-            ) : (
-              <CircleDashed className="size-3.5 text-muted-foreground" />
-            )}
-            <span className={s.status === "pending" ? "text-muted-foreground" : ""}>{s.label}</span>
-          </li>
-        ))}
-      </ol>
-    </div>
-  );
-}
-
-export function RunCard({ run }: { run: MskRun }) {
-  const { reloadPreview } = useMsk();
-  const [open, setOpen] = useState(false);
-  return (
-    <div className="msk-panel msk-neon-ring p-3">
-      <p className="text-[11px] uppercase tracking-[0.18em] text-primary">Concluído por MSK</p>
-      <p className="mt-1 text-sm">{run.summary ?? run.request}</p>
-      {run.files && run.files.length > 0 && (
-        <ul className="mt-2 space-y-0.5 font-mono text-[11px] text-muted-foreground">
-          {(open ? run.files : run.files.slice(0, 3)).map((f) => (
-            <li key={f}>{f}</li>
-          ))}
-        </ul>
-      )}
-      <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
-        <div>Repositório: {run.repository ?? "—"}</div>
-        <div>Branch: {run.branch ?? "—"}</div>
-        <div>Commit: {run.commit_sha ? run.commit_sha.slice(0, 7) : "—"}</div>
-        <div>{timeAgo(run.created_at)}</div>
-      </dl>
-      <div className="mt-3 flex flex-wrap gap-1.5">
-        <SmallBtn onClick={() => setOpen((v) => !v)}>
-          {open ? "Ocultar resumo" : "Ver resumo completo"}
-        </SmallBtn>
-        {run.commit_sha && run.repository && (
-          <a
-            href={`https://github.com/${run.repository}/commit/${run.commit_sha}`}
-            target="_blank"
-            rel="noreferrer"
-            className="msk-panel flex items-center gap-1 px-2 py-1 text-[11px] hover:text-foreground"
-          >
-            <ExternalLink className="size-3" /> Ver commit
-          </a>
-        )}
-        <SmallBtn onClick={reloadPreview}>Atualizar preview</SmallBtn>
-        <SmallBtn onClick={() => undefined} disabled title="Disponível quando o backend expõe revert">
-          <RotateCcw className="mr-1 inline size-3" /> Desfazer
-        </SmallBtn>
-      </div>
-    </div>
-  );
-}
-
-function SmallBtn({
-  children,
-  onClick,
-  disabled,
-  title,
-}: {
-  children: React.ReactNode;
-  onClick: () => void;
-  disabled?: boolean;
-  title?: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      title={title}
-      className="msk-panel px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:text-foreground disabled:opacity-40"
-    >
-      {children}
-    </button>
   );
 }
