@@ -234,7 +234,7 @@ export function Chat() {
           <button
             type="button"
             onClick={() => fileRef.current?.click()}
-            className="flex size-8 shrink-0 items-center justify-center rounded-lg text-violet-400 transition-colors hover:bg-violet-800 hover:text-violet-200"
+            className="flex size-9 shrink-0 items-center justify-center rounded-lg text-violet-400 transition-colors hover:bg-violet-800 hover:text-violet-200"
             aria-label="Anexar arquivo"
           >
             <Paperclip className="size-4" />
@@ -246,130 +246,57 @@ export function Chat() {
             className="hidden"
             onChange={async (e) => {
               const files = Array.from(e.target.files ?? []);
-              if (files.length) {
-                await AttachmentService.uploadFiles(files, addFiles);
-              }
+              if (!files.length) return;
+              await addFiles(files);
               e.target.value = "";
             }}
           />
-          <button
-            type="button"
-            className={`flex size-8 shrink-0 items-center justify-center rounded-lg transition-colors ${
-              listening
-                ? "bg-violet-600 text-violet-100 animate-pulse"
-                : "text-violet-400 hover:bg-violet-800 hover:text-violet-200"
-            }`}
-            onClick={toggleDictation}
-            aria-label={listening ? "Parar ditado" : "Iniciar ditado"}
-          >
-            <Mic className="size-4" />
-          </button>
-          {voiceError && (
-            <p className="absolute -top-6 left-0 text-[10px] text-red-400">{voiceError}</p>
-          )}
           <textarea
-            className="msk-input flex-1 resize-none rounded-lg bg-violet-950/50 px-3 py-2 text-sm text-violet-100 placeholder-violet-500 outline-none"
-            placeholder="Descreva o que deseja..."
+            ref={textRef}
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
-                void submit();
+                submit();
               }
             }}
+            placeholder="Descreva o que você quer criar ou mudar..."
             rows={1}
+            className="msk-scroll flex-1 resize-none rounded-lg bg-transparent px-3 py-2 text-sm text-violet-100 placeholder:text-violet-500 focus:outline-none"
+            style={{ minHeight: "2.25rem", maxHeight: "6rem" }}
           />
           <button
             type="button"
-            onClick={() => void submit()}
-            disabled={!text.trim() || sending}
-            className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-violet-700 text-violet-100 transition-all hover:bg-violet-600 disabled:cursor-not-allowed disabled:opacity-40"
-            aria-label="Enviar"
+            onClick={toggleDictation}
+            className={`flex size-9 shrink-0 items-center justify-center rounded-lg transition-colors ${" "}${listening ? "bg-violet-700 text-violet-100" : "text-violet-400 hover:bg-violet-800 hover:text-violet-200"}`}
+            aria-label={listening ? "Parar transcrição" : "Iniciar transcrição por voz"}
+          >
+            {listening ? (
+              <span className="relative flex size-4">
+                <span className="absolute inline-flex size-full animate-ping rounded-full bg-violet-400 opacity-75" />
+                <Mic className="relative z-10 size-4" />
+              </span>
+            ) : (
+              <Mic className="size-4" />
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={submit}
+            disabled={!text.trim() || !activeProject || sending}
+            className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-violet-700 text-violet-100 transition-all hover:bg-violet-600 disabled:cursor-not-allowed disabled:opacity-40"
+            aria-label="Enviar mensagem"
           >
             {sending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
           </button>
         </div>
-      </div>
-    </div>
-  );
-}
-
-function labelForStatus(status: string) {
-  switch (status) {
-    case "uploading":
-      return "Enviando";
-    case "processing":
-      return "Processando";
-    case "done":
-      return "Pronto";
-    case "error":
-      return "Erro";
-    default:
-      return status;
-  }
-}
-
-function RunProgress({ run }: { run: MskRun }) {
-  return (
-    <div className="rounded-xl border border-violet-800 bg-violet-900/80 p-3">
-      <div className="flex items-center justify-between text-xs text-violet-300">
-        <span className="flex items-center gap-1.5">
-          {run.status === "running" && <Loader2 className="size-3.5 animate-spin text-violet-400" />}
-          {run.status === "pending" && <CircleDashed className="size-3.5 animate-pulse text-violet-400" />}
-          {run.status === "done" && <CheckCircle2 className="size-3.5 text-green-500" />}
-          {run.status === "error" && <TriangleAlert className="size-3.5 text-red-400" />}
-          <span className="font-medium capitalize">{run.status}</span>
-        </span>
-        <span className="text-violet-500">{timeAgo(run.created_at)}</span>
-      </div>
-      {run.steps && run.steps.length > 0 && (
-        <ol className="mt-2 space-y-1">
-          {run.steps.map((step, i) => (
-            <li key={i} className="flex items-start gap-2 text-xs text-violet-300">
-              <span className="mt-0.5 size-1.5 shrink-0 rounded-full bg-violet-500" />
-              <span>{step.description}</span>
-            </li>
-          ))}
-        </ol>
-      )}
-    </div>
-  );
-}
-
-function RunCard({ run }: { run: MskRun }) {
-  const { openProject } = useMsk();
-  return (
-    <div className="rounded-xl border border-violet-800 bg-violet-900 p-3">
-      <p className="mb-2 text-xs font-medium text-violet-200">Execução concluída</p>
-      <div className="flex flex-wrap gap-2">
-        {run.artifacts?.map((a) => (
-          <button
-            key={a.id}
-            type="button"
-            onClick={() => openProject(a.url)}
-            className="flex items-center gap-1.5 rounded-lg bg-violet-800 px-2 py-1 text-[11px] text-violet-200 transition-colors hover:bg-violet-700"
-          >
-            <ExternalLink className="size-3 text-violet-400" />
-            {a.name}
-          </button>
-        ))}
-        <button
-          type="button"
-          onClick={() => openProject()}
-          className="flex items-center gap-1.5 rounded-lg bg-violet-800 px-2 py-1 text-[11px] text-violet-200 transition-colors hover:bg-violet-700"
-        >
-          <RotateCcw className="size-3 text-violet-400" />
-          Recarregar
-        </button>
-        <button
-          type="button"
-          onClick={() => window.location.reload()}
-          className="flex items-center gap-1.5 rounded-lg bg-violet-800 px-2 py-1 text-[11px] text-violet-200 transition-colors hover:bg-violet-700"
-        >
-          <Square className="size-3 text-violet-400" />
-          Encerrar
-        </button>
+        {voiceError && (
+          <p className="mt-1.5 flex items-center gap-1 text-[11px] text-violet-400">
+            <TriangleAlert className="size-3" />
+            {voiceError}
+          </p>
+        )}
       </div>
     </div>
   );
