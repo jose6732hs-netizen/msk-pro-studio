@@ -184,8 +184,7 @@ function restHeaders(token?: string | null): HeadersInit {
   };
 }
 
-export async function dbSelect<T>(
-  table: string,
+export async function dbSelect<T>(\n  table: string,
   query: string,
   token?: string | null,
 ): Promise<T[]> {
@@ -197,8 +196,7 @@ export async function dbSelect<T>(
   return (await res.json()) as T[];
 }
 
-export async function dbInsert<T>(
-  table: string,
+export async function dbInsert<T>(\n  table: string,
   rows: unknown,
   token?: string | null,
 ): Promise<T[]> {
@@ -212,8 +210,7 @@ export async function dbInsert<T>(
   return (await res.json()) as T[];
 }
 
-export async function dbPatch<T>(
-  table: string,
+export async function dbPatch<T>(\n  table: string,
   query: string,
   patch: unknown,
   token?: string | null,
@@ -276,175 +273,19 @@ export function createBus(onEvent: (e: MskBusEvent) => void) {
   }
   const onWindowMessage = (ev: MessageEvent) => {
     const data = ev.data as { source?: string; payload?: MskBusEvent } | undefined;
-    if (data && data.source === "msk-extension" && data.payload) onEvent(data.payload);
+    if (data && data.source === "msk-extension" && data.payload) {
+      onEvent(data.payload);
+    }
   };
   window.addEventListener("message", onWindowMessage);
   return {
-    post: (e: MskBusEvent) => channel?.postMessage(e),
-    close: () => {
-      window.removeEventListener("message", onWindowMessage);
+    post(event: MskBusEvent) {
+      if (channel) channel.postMessage(event);
+      window.postMessage({ source: "msk-panel", payload: event }, "*");
+    },
+    close() {
       channel?.close();
+      window.removeEventListener("message", onWindowMessage);
     },
   };
 }
-
-/* ------------------------------------------------------------------ */
-/* Handoff da extensão                                                  */
-/* ------------------------------------------------------------------ */
-
-/**
- * O popup abre o painel com ?handoff=<token de sessão>&project=<lovable_project_id>.
- * O token é de sessão do usuário (nunca segredo de serviço) e é removido da URL
- * imediatamente após ser guardado.
- */
-export function readHandoff(): Partial<MskSession> | null {
-  if (typeof window === "undefined") return null;
-  const url = new URL(window.location.href);
-  const token = url.searchParams.get("handoff");
-  const project = url.searchParams.get("project");
-  const email = url.searchParams.get("email");
-  const name = url.searchParams.get("name");
-  const userId = url.searchParams.get("uid");
-  if (!token && !project) return null;
-  url.searchParams.delete("handoff");
-  url.searchParams.delete("project");
-  url.searchParams.delete("email");
-  url.searchParams.delete("name");
-  url.searchParams.delete("uid");
-  window.history.replaceState({}, "", url.toString());
-  return {
-    access_token: token,
-    active_project_id: project,
-    email,
-    name,
-    user_id: userId,
-    source: "extension",
-  };
-}
-
-/**
- * O popup também envia o projeto/repositório ativo e o histórico de repositórios:
- * ?repo=owner/name&branch=main&pname=Nome&purl=...&preview=...&projects=<base64(JSON[])>
- * Os parâmetros são removidos da URL depois de lidos.
- */
-export function readHandoffProjects(): MskProject[] {
-  if (typeof window === "undefined") return [];
-  const url = new URL(window.location.href);
-  const keys = ["repo", "branch", "pname", "purl", "preview", "pid", "projects"];
-  if (!keys.some((k) => url.searchParams.has(k))) return [];
-
-  const list: MskProject[] = [];
-  const raw = url.searchParams.get("projects");
-  if (raw) {
-    try {
-      const decoded = JSON.parse(
-        decodeURIComponent(escape(atob(raw.replace(/-/g, "+").replace(/_/g, "/")))),
-      ) as Array<Record<string, string | null>>;
-      for (const p of decoded) {
-        if (!p || typeof p !== "object") continue;
-        list.push(normalizeHandoffProject(p));
-      }
-    } catch {
-      /* payload inválido: ignorado, sem sucesso falso */
-    }
-  }
-
-  const repo = url.searchParams.get("repo");
-  const pid = url.searchParams.get("pid") ?? url.searchParams.get("project");
-  if (repo || pid) {
-    list.push(
-      normalizeHandoffProject({
-        id: pid,
-        lovable_project_id: pid,
-        name: url.searchParams.get("pname") ?? repo ?? pid,
-        repository: repo,
-        branch: url.searchParams.get("branch"),
-        lovable_url: url.searchParams.get("purl"),
-        preview_url: url.searchParams.get("preview"),
-      }),
-    );
-  }
-
-  for (const k of keys) url.searchParams.delete(k);
-  window.history.replaceState({}, "", url.toString());
-  return list;
-}
-
-function normalizeHandoffProject(p: Record<string, unknown>): MskProject {
-  const str = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null);
-  const id = str(p["id"]) ?? str(p["lovable_project_id"]) ?? uid();
-  return {
-    id,
-    lovable_project_id: str(p["lovable_project_id"]) ?? str(p["id"]),
-    name: str(p["name"]) ?? str(p["repository"]) ?? "Projeto sem nome",
-    lovable_url: str(p["lovable_url"]),
-    preview_url: str(p["preview_url"]),
-    production_url: str(p["production_url"]),
-    repository: str(p["repository"]),
-    branch: str(p["branch"]) ?? "main",
-    updated_at: str(p["updated_at"]) ?? new Date().toISOString(),
-  };
-}
-
-export const emptySession: MskSession = {
-  user_id: null,
-  email: null,
-  name: null,
-  access_token: null,
-  active_project_id: null,
-  source: "none",
-};
-
-/* ------------------------------------------------------------------ */
-/* Utilidades                                                          */
-/* ------------------------------------------------------------------ */
-
-export const uid = () =>
-  typeof crypto !== "undefined" && "randomUUID" in crypto
-    ? crypto.randomUUID()
-    : `id-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-
-export function timeAgo(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
-  const m = Math.floor(diff / 60000);
-  if (m < 1) return "agora";
-  if (m < 60) return `há ${m} min`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `há ${h}h`;
-  return `há ${Math.floor(h / 24)}d`;
-}
-
-export function formatRemaining(expiresAt: string | null): {
-  label: string;
-  ratio: number;
-  level: "green" | "yellow" | "red" | "expired";
-} {
-  if (!expiresAt) return { label: "—", ratio: 0, level: "expired" };
-  const ms = new Date(expiresAt).getTime() - Date.now();
-  if (ms <= 0) return { label: "Expirado", ratio: 0, level: "expired" };
-  const h = Math.floor(ms / 3600000);
-  const min = Math.floor((ms % 3600000) / 60000);
-  const ratio = Math.max(0, Math.min(1, ms / (24 * 3600000)));
-  const level = h >= 6 ? "green" : h >= 2 ? "yellow" : "red";
-  return { label: `${h}h ${min}min`, ratio, level };
-}
-
-export const DEVICE_WIDTH: Record<Device, number | null> = {
-  desktop: null,
-  tablet: 768,
-  mobile: 390,
-};
-
-export const RUN_STEPS: { key: string; label: string }[] = [
-  { key: "received", label: "Pedido recebido" },
-  { key: "project", label: "Projeto identificado" },
-  { key: "repo", label: "Repositório localizado" },
-  { key: "analyze", label: "Analisando" },
-  { key: "locate", label: "Localizando arquivos" },
-  { key: "edit", label: "Editando" },
-  { key: "validate", label: "Validando" },
-  { key: "commit", label: "Criando commit" },
-  { key: "sync", label: "Sincronizando" },
-  { key: "preview", label: "Preview disponível" },
-  { key: "done", label: "Finalizado" },
-];
