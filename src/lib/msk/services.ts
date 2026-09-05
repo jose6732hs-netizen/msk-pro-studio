@@ -74,8 +74,9 @@ async function edgePost<T>(
       status?: number;
     };
     err.code = String(data["code"] ?? "MSK_REQUEST_FAILED");
-    err.stage = data["stage"] ? String(data["stage"]) : undefined;
-    err.errorId = data["error_id"] ? String(data["error_id"]) : undefined;
+    if (data["stage"]) err.stage = String(data["stage"]);
+    if (data["error_id"]) err.errorId = String(data["error_id"]);
+
     err.status = res.status;
     throw err;
   }

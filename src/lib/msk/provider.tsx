@@ -733,6 +733,37 @@ export function MskProvider({ children }: { children: ReactNode }) {
     window.setTimeout(() => setPreviewStatus("synced"), 600);
   }, []);
 
+  /**
+   * ATUALIZAÇÃO AUTOMÁTICA DA PRÉVIA.
+   * Quando o agente conclui uma execução (commit real), a prévia fica
+   * "update-available". Em vez de exigir clique manual, recarregamos sozinhos
+   * assim que a aba estiver visível — dando um pequeno intervalo para o deploy.
+   */
+  useEffect(() => {
+    if (previewStatus !== "update-available") return;
+    let cancelled = false;
+    let timer = 0;
+
+    const run = () => {
+      if (cancelled) return;
+      timer = window.setTimeout(() => {
+        if (!cancelled) reloadPreview();
+      }, 2500);
+    };
+
+    if (document.visibilityState === "visible") run();
+    const onVisible = () => {
+      if (document.visibilityState === "visible") run();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [previewStatus, reloadPreview]);
+
+
 
   /** Lista COMPLETA dos repositórios da conta conectada na extensão oficial. */
   const listRepositories = useCallback(() => {
