@@ -735,33 +735,46 @@ export function MskProvider({ children }: { children: ReactNode }) {
 
   /**
    * ATUALIZAÇÃO AUTOMÁTICA DA PRÉVIA.
-   * Quando o agente conclui uma execução (commit real), a prévia fica
-   * "update-available". Em vez de exigir clique manual, recarregamos sozinhos
-   * assim que a aba estiver visível — dando um pequeno intervalo para o deploy.
+   * Um commit real só aparece no ar depois do deploy, que leva alguns segundos.
+   * Por isso recarregamos em série (2s, 8s, 18s, 32s) após a execução concluir,
+   * garantindo que a versão nova apareça sem clique manual.
    */
+  const autoRefreshRef = useRef<{ armed: boolean; timers: number[] }>({
+    armed: false,
+    timers: [],
+  });
+
   useEffect(() => {
     if (previewStatus !== "update-available") return;
-    let cancelled = false;
-    let timer = 0;
+    if (autoRefreshRef.current.armed) return;
+    autoRefreshRef.current.armed = true;
 
-    const run = () => {
-      if (cancelled) return;
-      timer = window.setTimeout(() => {
-        if (!cancelled) reloadPreview();
-      }, 2500);
-    };
+    const delays = [2000, 8000, 18000, 32000];
+    const timers = delays.map((d) =>
+      window.setTimeout(() => {
+        if (document.visibilityState === "hidden") return;
+        reloadPreview();
+        if (d === delays[delays.length - 1]) autoRefreshRef.current.armed = false;
+      }, d),
+    );
+    autoRefreshRef.current.timers = timers;
+  }, [previewStatus, reloadPreview]);
 
-    if (document.visibilityState === "visible") run();
+  // Ao voltar para a aba, garante uma recarga imediata se algo ficou pendente.
+  useEffect(() => {
     const onVisible = () => {
-      if (document.visibilityState === "visible") run();
+      if (document.visibilityState === "visible" && autoRefreshRef.current.armed) {
+        reloadPreview();
+      }
     };
     document.addEventListener("visibilitychange", onVisible);
     return () => {
-      cancelled = true;
-      window.clearTimeout(timer);
       document.removeEventListener("visibilitychange", onVisible);
+      autoRefreshRef.current.timers.forEach((t) => window.clearTimeout(t));
+      autoRefreshRef.current.timers = [];
     };
-  }, [previewStatus, reloadPreview]);
+  }, [reloadPreview]);
+
 
 
 
