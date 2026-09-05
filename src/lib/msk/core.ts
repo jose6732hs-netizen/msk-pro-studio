@@ -184,7 +184,8 @@ function restHeaders(token?: string | null): HeadersInit {
   };
 }
 
-export async function dbSelect<T>(\n  table: string,
+export async function dbSelect<T>(
+  table: string,
   query: string,
   token?: string | null,
 ): Promise<T[]> {
@@ -196,7 +197,8 @@ export async function dbSelect<T>(\n  table: string,
   return (await res.json()) as T[];
 }
 
-export async function dbInsert<T>(\n  table: string,
+export async function dbInsert<T>(
+  table: string,
   rows: unknown,
   token?: string | null,
 ): Promise<T[]> {
@@ -210,7 +212,8 @@ export async function dbInsert<T>(\n  table: string,
   return (await res.json()) as T[];
 }
 
-export async function dbPatch<T>(\n  table: string,
+export async function dbPatch<T>(
+  table: string,
   query: string,
   patch: unknown,
   token?: string | null,
