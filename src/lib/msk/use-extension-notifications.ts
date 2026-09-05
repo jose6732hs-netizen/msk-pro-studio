@@ -9,27 +9,29 @@ export interface ExtensionNotification extends MskNotification {
 
 function normalize(value: unknown): ExtensionNotification[] {
   if (!Array.isArray(value)) return [];
-  return value
-    .map((raw) => {
-      const item = (raw ?? {}) as Record<string, unknown>;
-      const id = String(item["id"] ?? "").trim();
-      if (!id) return null;
-      const kindRaw = String(item["kind"] ?? "info").toLowerCase();
-      const kind: MskNotification["kind"] =
-        kindRaw === "error" || kindRaw === "warning" || kindRaw === "success"
-          ? kindRaw
-          : "info";
-      return {
+  return value.flatMap<ExtensionNotification>((raw) => {
+    const item = (raw ?? {}) as Record<string, unknown>;
+    const id = String(item["id"] ?? "").trim();
+    if (!id) return [];
+    const kindRaw = String(item["kind"] ?? "info").toLowerCase();
+    const kind: MskNotification["kind"] =
+      kindRaw === "error" || kindRaw === "warning" || kindRaw === "success"
+        ? kindRaw
+        : "info";
+    const message = item["message"] ? String(item["message"]).slice(0, 700) : null;
+    return [
+      {
         id,
         title: String(item["title"] ?? "MSK SYSTEM").slice(0, 100),
-        message: item["message"] ? String(item["message"]).slice(0, 700) : undefined,
+        ...(message ? { message } : {}),
         kind,
         created_at: String(item["created_at"] ?? new Date().toISOString()),
         read: Boolean(item["read"]),
         source: "extension-control-v2" as const,
-      };
-    })
-    .filter((item): item is ExtensionNotification => Boolean(item));
+      },
+    ];
+  });
+
 }
 
 export function useExtensionNotifications() {
