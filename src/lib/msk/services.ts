@@ -178,34 +178,60 @@ export const ProjectService = {
 
 /* ------------------------------ Conversa ------------------------------ */
 
+function compactMessageForLocal(message: MskMessage): MskMessage {
+  const attachments = message.attachments?.map((attachment) => {
+    const compact = { ...attachment };
+    delete compact.data_url;
+    if (compact.text_preview) compact.text_preview = compact.text_preview.slice(0, 4000);
+    return compact;
+  });
+  return { ...message, ...(attachments ? { attachments } : {}) };
+}
+
+function mergeMessages(local: MskMessage[], remote: MskMessage[]): MskMessage[] {
+  const byId = new Map<string, MskMessage>();
+  for (const message of local) byId.set(message.id, message);
+  for (const message of remote) byId.set(message.id, message);
+  return Array.from(byId.values()).sort(
+    (a, b) => Date.parse(a.created_at) - Date.parse(b.created_at),
+  );
+}
+
 export const ConversationService = {
   connected,
   async list(token: string | null, projectId: string): Promise<MskMessage[]> {
+    const key = `messages.${projectId}`;
+    const local = loadLocal<MskMessage[]>(key, []);
     if (connected()) {
       try {
-        return await dbSelect<MskMessage>(
+        const remote = await dbSelect<MskMessage>(
           "agent_messages",
           `select=*&project_id=eq.${projectId}&order=created_at.asc`,
           token,
         );
+        const merged = mergeMessages(local, remote);
+        saveLocal(key, merged.map(compactMessageForLocal));
+        return merged;
       } catch {
-        // mantém recuperação local quando o schema de conversa ainda não foi migrado
+        // recuperação local continua disponível mesmo sem tabela/rede
       }
     }
-    return loadLocal<MskMessage[]>(`messages.${projectId}`, []);
+    return local;
   },
   async append(token: string | null, message: MskMessage): Promise<MskMessage> {
+    const key = `messages.${message.project_id}`;
+    const local = loadLocal<MskMessage[]>(key, []);
+    const compact = compactMessageForLocal(message);
+    saveLocal(key, [...local.filter((item) => item.id !== compact.id), compact]);
+
     if (connected()) {
       try {
         const [row] = await dbInsert<MskMessage>("agent_messages", message, token);
         return row ?? message;
       } catch {
-        // não perde a conversa porque o cache local continua abaixo
+        // a mensagem já está preservada localmente por projeto
       }
     }
-    const key = `messages.${message.project_id}`;
-    const list = loadLocal<MskMessage[]>(key, []);
-    saveLocal(key, [...list, message]);
     return message;
   },
 };
@@ -456,12 +482,23 @@ export const PreviewService = {
 
 /* ----------------------------- Anexos --------------------------------- */
 
-const TEXTUAL = ["application/json", "text/plain", "text/markdown"];
+const TEXTUAL = ["application/json", "text/plain", "text/markdown", "text/csv"];
+const MAX_ATTACHMENT_BYTES = 15 * 1024 * 1024;
 
 export const AttachmentService = {
   accept: ".png,.jpg,.jpeg,.webp,.svg,.pdf,.txt,.json,.zip,.md,.csv,application/pdf,image/*",
+  maxBytes: MAX_ATTACHMENT_BYTES,
   isAllowed(file: File) {
     return /\.(png|jpe?g|webp|svg|pdf|txt|json|zip|md|csv)$/i.test(file.name);
+  },
+  validate(file: File): string | null {
+    if (!AttachmentService.isAllowed(file)) {
+      return "Formato não suportado. Use imagem, PDF, TXT, JSON, ZIP, MD ou CSV.";
+    }
+    if (file.size > MAX_ATTACHMENT_BYTES) {
+      return "Arquivo maior que 15 MB. Reduza o tamanho antes de enviar.";
+    }
+    return null;
   },
   async read(file: File, projectId: string | null): Promise<MskAttachment> {
     const base: MskAttachment = {
@@ -473,15 +510,20 @@ export const AttachmentService = {
       status: "reading",
       created_at: new Date().toISOString(),
     };
+    const validationError = AttachmentService.validate(file);
+    if (validationError) return { ...base, status: "error", error: validationError };
+
     try {
-      if (file.type.startsWith("image/")) base.data_url = await toDataUrl(file);
-      else if (TEXTUAL.includes(file.type) || /\.(txt|json|md|csv)$/i.test(file.name)) {
+      if (TEXTUAL.includes(file.type) || /\.(txt|json|md|csv)$/i.test(file.name)) {
         base.text_preview = (await file.text()).slice(0, 20000);
+      } else {
+        // Imagens, PDF e ZIP seguem no payload para o mesmo agente que executa a edição.
+        base.data_url = await toDataUrl(file);
       }
       base.status = "analyzed";
       return base;
     } catch {
-      return { ...base, status: "error" };
+      return { ...base, status: "error", error: "Não foi possível ler este arquivo no navegador." };
     }
   },
   async upload(token: string | null, attachment: MskAttachment): Promise<MskAttachment> {

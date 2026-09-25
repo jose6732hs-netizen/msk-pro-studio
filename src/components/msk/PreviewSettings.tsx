@@ -107,11 +107,11 @@ export function PreviewSettingsPanel() {
               setOk(false);
               setError(null);
             }}
-            placeholder="https://lovable.dev/projects/... ou https://seusite.lovable.app"
+            placeholder="Cole a URL do preview da Lovable ou do projeto"
             className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-[11px] outline-none focus:border-primary"
           />
           {error && <p className="text-[10px] text-destructive">{error}</p>}
-          {ok && <p className="text-[10px] text-primary">Projeto refletido no preview.</p>}
+          {ok && <p className="text-[10px] text-primary">Preview carregado dentro do editor.</p>}
           <button
             type="submit"
             className="rounded-md bg-primary py-1.5 text-[11px] font-semibold text-primary-foreground hover:bg-primary/90"

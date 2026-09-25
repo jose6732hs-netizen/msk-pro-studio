@@ -40,6 +40,8 @@ export function Chat() {
   const streamRef = useRef<MediaStream | null>(null);
   const [listening, setListening] = useState(false);
   const [voiceError, setVoiceError] = useState<string | null>(null);
+  const [draggingFiles, setDraggingFiles] = useState(false);
+  const dragDepthRef = useRef(0);
 
   const stopStream = () => {
     streamRef.current?.getTracks().forEach((t) => t.stop());
@@ -133,13 +135,51 @@ export function Chat() {
   }
 
   return (
-    <div className="relative flex min-h-0 flex-1 flex-col">
+    <div
+      className="relative flex min-h-0 flex-1 flex-col"
+      onDragEnter={(event) => {
+        if (!event.dataTransfer.types.includes("Files")) return;
+        event.preventDefault();
+        dragDepthRef.current += 1;
+        setDraggingFiles(true);
+      }}
+      onDragOver={(event) => {
+        if (!event.dataTransfer.types.includes("Files")) return;
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "copy";
+      }}
+      onDragLeave={(event) => {
+        if (!event.dataTransfer.types.includes("Files")) return;
+        event.preventDefault();
+        dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
+        if (dragDepthRef.current === 0) setDraggingFiles(false);
+      }}
+      onDrop={(event) => {
+        if (!event.dataTransfer.files.length) return;
+        event.preventDefault();
+        event.stopPropagation();
+        dragDepthRef.current = 0;
+        setDraggingFiles(false);
+        void addFiles(event.dataTransfer.files);
+      }}
+    >
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0 bg-cover bg-center opacity-25"
         style={{ backgroundImage: `url(${chatBgAsset.url})` }}
       />
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/70 via-black/40 to-black/80" aria-hidden />
+      {draggingFiles && (
+        <div className="pointer-events-none absolute inset-3 z-50 flex items-center justify-center rounded-2xl border-2 border-dashed border-primary bg-background/90 backdrop-blur-sm">
+          <div className="text-center">
+            <Paperclip className="mx-auto mb-2 size-7 text-primary" />
+            <p className="text-sm font-semibold">Solte os arquivos para anexar</p>
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              Imagens, PDF, TXT, JSON, ZIP, MD e CSV · até 15 MB por arquivo
+            </p>
+          </div>
+        </div>
+      )}
       <div className="msk-scroll relative flex-1 space-y-3 overflow-y-auto p-3">
         {messages.length === 0 && !activeRun && !sending && (
           <div className="msk-panel p-4 text-xs text-muted-foreground">
@@ -218,7 +258,12 @@ export function Chat() {
             >
               <FileText className="size-3 text-muted-foreground" />
               <span className="max-w-[120px] truncate">{a.name}</span>
-              <span className="text-[10px] uppercase tracking-wide text-primary">
+              <span
+                className={`text-[10px] uppercase tracking-wide ${
+                  a.status === "error" ? "text-destructive" : "text-primary"
+                }`}
+                title={a.error}
+              >
                 {labelForStatus(a.status)}
               </span>
               <button type="button" onClick={() => removeAttachment(a.id)} aria-label="Remover">

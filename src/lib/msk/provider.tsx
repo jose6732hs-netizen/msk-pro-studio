@@ -9,6 +9,7 @@ import {
   persistContext,
   resolvePreview,
   resolveProject,
+  toEmbeddablePreview,
   type ActiveContext,
   type ContextSyncStatus,
   type ProjectResolution,
@@ -159,6 +160,26 @@ export function MskProvider({ children }: { children: ReactNode }) {
   });
   const [syncNonce, setSyncNonce] = useState(0);
   const busRef = useRef<{ post: (e: never) => void; close: () => void } | null>(null);
+  const activeIdRef = useRef<string | null>(null);
+  const sessionTokenRef = useRef<string | null>(null);
+  const runProjectRef = useRef<Map<string, string>>(new Map());
+
+  useEffect(() => {
+    activeIdRef.current = activeId;
+  }, [activeId]);
+
+  useEffect(() => {
+    sessionTokenRef.current = session.access_token;
+  }, [session.access_token]);
+
+  const persistMessage = useCallback((message: MskMessage) => {
+    if (!message.project_id) return;
+    void ConversationService.append(sessionTokenRef.current, message).catch(() => {});
+    if (message.project_id !== activeIdRef.current) return;
+    setMessages((prev) =>
+      prev.some((item) => item.id === message.id) ? prev : [...prev, message],
+    );
+  }, []);
 
   /* ---- Sessão / handoff da extensão ---- */
   useEffect(() => {
@@ -211,12 +232,12 @@ export function MskProvider({ children }: { children: ReactNode }) {
         setRuns((prev) => [e.run, ...prev.filter((r) => r.id !== e.run.id)]);
         if (e.run.status === "done") setPreviewStatus("update-available");
       }
-      if (e.type === "message") setMessages((prev) => [...prev, e.message]);
+      if (e.type === "message") persistMessage(e.message);
       if (e.type === "session") setSession(e.session);
     });
     busRef.current = bus as never;
     return () => bus.close();
-  }, []);
+  }, [persistMessage]);
 
   /* ---- MSK Bridge: contexto ativo da extensão ---- */
   useEffect(() => {
@@ -280,17 +301,19 @@ export function MskProvider({ children }: { children: ReactNode }) {
       MskEventBus.on(MSK_EVENTS.CHAT_MESSAGE, (payload) => {
         const content = (payload["content"] as string) ?? (payload["text"] as string) ?? "";
         if (!content.trim()) return;
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: (payload["id"] as string) ?? uid(),
-            project_id: (payload["projectId"] as string) ?? null,
-            role: ((payload["role"] as string) ?? "assistant") as MskMessage["role"],
-            content,
-            created_at: (payload["createdAt"] as string) ?? new Date().toISOString(),
-            attachments: [],
-          },
-        ]);
+        const projectId = (payload["projectId"] as string) ?? activeIdRef.current;
+        if (!projectId) return;
+        const rawRole = (payload["role"] as string) ?? "agent";
+        const role: MskMessage["role"] =
+          rawRole === "user" ? "user" : rawRole === "system" ? "system" : "agent";
+        persistMessage({
+          id: (payload["id"] as string) ?? uid(),
+          project_id: projectId,
+          role,
+          content,
+          created_at: (payload["createdAt"] as string) ?? new Date().toISOString(),
+          attachments: [],
+        });
       }),
 
       // Execução real do agente (extensão → painel): progresso, conclusão e falha.
@@ -330,17 +353,21 @@ export function MskProvider({ children }: { children: ReactNode }) {
         const repository = (payload["repository"] as string) ?? null;
         const branch = (payload["branch"] as string) ?? null;
 
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: uid(),
-            project_id: (payload["projectId"] as string) ?? "",
-            role: "agent" as const,
+        const projectId =
+          (payload["projectId"] as string) ??
+          (runId ? runProjectRef.current.get(runId) : null) ??
+          activeIdRef.current;
+        if (projectId) {
+          persistMessage({
+            id: runId ? `run:${runId}:result` : uid(),
+            project_id: projectId,
+            role: "agent",
             content,
             created_at: new Date().toISOString(),
             attachments: [],
-          },
-        ]);
+            run_id: runId,
+          });
+        }
         setRuns((prev) => {
           const next = prev.map((r) =>
             r.id === runId
@@ -391,17 +418,21 @@ export function MskProvider({ children }: { children: ReactNode }) {
           if (failed) AgentService.saveLocalRun(failed);
           return next;
         });
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: uid(),
-            project_id: "",
-            role: "agent" as const,
+        const projectId =
+          (payload["projectId"] as string) ??
+          (runId ? runProjectRef.current.get(runId) : null) ??
+          activeIdRef.current;
+        if (projectId) {
+          persistMessage({
+            id: runId ? `run:${runId}:error` : uid(),
+            project_id: projectId,
+            role: "agent",
             content: `Não consegui concluir: ${message}`,
             created_at: new Date().toISOString(),
             attachments: [],
-          },
-        ]);
+            run_id: runId,
+          });
+        }
       }),
       MskEventBus.on(MSK_EVENTS.EXTENSION_READY, () => {
         setExtensionInstalled(true);
@@ -412,7 +443,7 @@ export function MskProvider({ children }: { children: ReactNode }) {
     ];
     sendToExtension(MSK_EVENTS.PANEL_GITHUB_STATUS, { source: "panel" });
     return () => offs.forEach((off) => off());
-  }, []);
+  }, [persistMessage]);
 
   /* ---- GitHub conectado na extensão → reflete no editor ---- */
   useEffect(() => {
@@ -476,6 +507,10 @@ export function MskProvider({ children }: { children: ReactNode }) {
     [projects, activeId],
   );
 
+  useEffect(() => {
+    setAttachments([]);
+  }, [activeProject?.id]);
+
   /* ---- Conversa + execuções do projeto ativo ---- */
   useEffect(() => {
     if (!activeProject) {
@@ -493,6 +528,7 @@ export function MskProvider({ children }: { children: ReactNode }) {
       if (cancelled) return;
       setMessages(msgs);
       setRuns(r);
+      for (const run of r) runProjectRef.current.set(run.id, run.project_id);
       setPreviewStatus(activeProject.preview_url ? "synced" : "empty");
     })();
     return () => {
@@ -643,6 +679,7 @@ export function MskProvider({ children }: { children: ReactNode }) {
           created_at: new Date().toISOString(),
         };
         setRuns((prev) => [run, ...prev]);
+        runProjectRef.current.set(run.id, run.project_id);
         AgentService.saveLocalRun(run);
         sendToExtension(MSK_EVENTS.PANEL_CHAT_SEND, {
           runId: run.id,
@@ -653,7 +690,16 @@ export function MskProvider({ children }: { children: ReactNode }) {
           repository: activeProject.repository,
           branch: activeProject.branch,
           prompt: message.content,
-          attachments: attachments.map((a) => ({ id: a.id, name: a.name, mime: a.mime })),
+          attachments: attachments
+            .filter((a) => a.status !== "error")
+            .map((a) => ({
+              id: a.id,
+              name: a.name,
+              mime: a.mime,
+              size: a.size,
+              dataUrl: a.data_url,
+              textPreview: a.text_preview,
+            })),
         });
         setAttachments([]);
         return;
@@ -670,6 +716,7 @@ export function MskProvider({ children }: { children: ReactNode }) {
           attachments,
         });
         setRuns((prev) => [run, ...prev]);
+        runProjectRef.current.set(run.id, run.project_id);
         AgentService.saveLocalRun(run);
       } catch (err) {
         const failed: MskRun = {
@@ -694,34 +741,73 @@ export function MskProvider({ children }: { children: ReactNode }) {
 
   const addFiles = useCallback(
     async (files: FileList | File[]) => {
-      const list = Array.from(files).filter((f) => AttachmentService.isAllowed(f));
+      const list = Array.from(files);
       for (const file of list) {
+        const validationError = AttachmentService.validate(file);
+        if (validationError) {
+          setAttachments((prev) => [
+            ...prev,
+            {
+              id: uid(),
+              project_id: activeProject?.id ?? null,
+              name: file.name,
+              mime: file.type || "application/octet-stream",
+              size: file.size,
+              status: "error",
+              error: validationError,
+              created_at: new Date().toISOString(),
+            },
+          ]);
+          continue;
+        }
+
         const received: MskAttachment = {
           id: uid(),
           project_id: activeProject?.id ?? null,
           name: file.name,
-          mime: file.type,
+          mime: file.type || "application/octet-stream",
           size: file.size,
           status: "received",
           created_at: new Date().toISOString(),
         };
         setAttachments((prev) => [...prev, received]);
+
         const parsed = await AttachmentService.read(file, activeProject?.id ?? null);
-        setAttachments((prev) =>
-          prev.map((a) => (a.id === received.id ? { ...parsed, id: received.id } : a)),
-        );
+        const next = { ...parsed, id: received.id };
+        setAttachments((prev) => prev.map((a) => (a.id === received.id ? next : a)));
+        if (next.status === "error") continue;
+
         try {
-          await AttachmentService.upload(session.access_token, { ...parsed, id: received.id });
-          setAttachments((prev) =>
-            prev.map((a) => (a.id === received.id ? { ...a, status: "ready" } : a)),
-          );
+          await AttachmentService.upload(session.access_token, next);
         } catch {
-          /* sem backend: o anexo fica local e a IA só o recebe após conectar */
+          // Sem backend, o arquivo continua pronto localmente para a extensão/IA.
         }
+        setAttachments((prev) =>
+          prev.map((a) => (a.id === received.id ? { ...a, status: "ready" } : a)),
+        );
       }
     },
     [activeProject, session.access_token],
   );
+
+  useEffect(() => {
+    const onDragOver = (event: DragEvent) => {
+      if (!event.dataTransfer?.types.includes("Files")) return;
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "copy";
+    };
+    const onDrop = (event: DragEvent) => {
+      if (!event.dataTransfer?.files.length) return;
+      event.preventDefault();
+      void addFiles(event.dataTransfer.files);
+    };
+    window.addEventListener("dragover", onDragOver);
+    window.addEventListener("drop", onDrop);
+    return () => {
+      window.removeEventListener("dragover", onDragOver);
+      window.removeEventListener("drop", onDrop);
+    };
+  }, [addFiles]);
 
   const removeAttachment = useCallback((id: string) => {
     setAttachments((prev) => prev.filter((a) => a.id !== id));
@@ -862,54 +948,86 @@ export function MskProvider({ children }: { children: ReactNode }) {
     (raw: string): string | null => {
       const input = raw.trim();
       if (!input) return null;
+
       let parsed: URL;
       try {
         parsed = new URL(input.startsWith("http") ? input : `https://${input}`);
       } catch {
         return null;
       }
-      const host = parsed.hostname;
-      const lovableId =
-        /lovable\.dev$/i.test(host) ? parsed.pathname.split("/").filter(Boolean).pop() ?? null : null;
-      const previewUrl = lovableId
-        ? `https://${lovableId}.lovableproject.com`
-        : parsed.origin + (parsed.pathname === "/" ? "" : parsed.pathname);
-      const name = lovableId ? `Projeto ${lovableId.slice(0, 8)}` : host;
 
-      const project: MskProject = {
-        id: uid(),
-        lovable_project_id: lovableId,
-        name,
-        lovable_url: lovableId ? `https://lovable.dev/projects/${lovableId}` : null,
-        preview_url: previewUrl,
-        production_url: /lovable\.app$/i.test(host) ? parsed.origin : null,
-        repository: activeProject?.repository ?? null,
-        branch: activeProject?.branch ?? "main",
-        updated_at: new Date().toISOString(),
-      };
+      const host = parsed.hostname.toLowerCase();
+      const lovableFromPath =
+        /(^|\.)lovable\.dev$/i.test(host)
+          ? parsed.pathname.match(/([0-9a-f-]{36})/i)?.[1] ?? null
+          : null;
+      const lovableFromPreview =
+        /^id-preview--([0-9a-f-]{36})\.lovable\.app$/i.exec(host)?.[1] ?? null;
+      const lovableFromSandbox =
+        /^([0-9a-f-]{36})\.lovableproject\.com$/i.exec(host)?.[1] ?? null;
+      const lovableId = lovableFromPath ?? lovableFromPreview ?? lovableFromSandbox;
+      const previewUrl = toEmbeddablePreview(parsed.toString()) ?? parsed.toString();
       const existing = projects.find(
-        (p) => (lovableId && p.lovable_project_id === lovableId) || p.preview_url === previewUrl,
+        (project) =>
+          (lovableId && project.lovable_project_id === lovableId) ||
+          project.preview_url === previewUrl,
       );
-      const finalProject = existing ? { ...existing, ...project, id: existing.id } : project;
-      setProjects(ProjectService.upsertLocal(finalProject));
-      setActiveId(finalProject.id);
-      saveLocal("active_project_id", finalProject.id);
+
+      // Colar uma URL na aba Preview deve trocar o preview do projeto atual,
+      // sem criar outra conversa/projeto e sem perder histórico/repositório.
+      const base = activeProject ?? existing;
+      const project: MskProject = base
+        ? {
+            ...base,
+            lovable_project_id: base.lovable_project_id ?? lovableId,
+            lovable_url:
+              base.lovable_url ?? (lovableId ? `https://lovable.dev/projects/${lovableId}` : null),
+            preview_url: previewUrl,
+            production_url:
+              base.production_url ??
+              (/\.lovable\.app$/i.test(host) && !/^id-preview--/i.test(host)
+                ? parsed.origin
+                : null),
+            updated_at: new Date().toISOString(),
+          }
+        : {
+            id: uid(),
+            lovable_project_id: lovableId,
+            name: lovableId ? `Projeto ${lovableId.slice(0, 8)}` : host,
+            lovable_url: lovableId ? `https://lovable.dev/projects/${lovableId}` : null,
+            preview_url: previewUrl,
+            production_url:
+              /\.lovable\.app$/i.test(host) && !/^id-preview--/i.test(host)
+                ? parsed.origin
+                : null,
+            repository: null,
+            branch: "main",
+            updated_at: new Date().toISOString(),
+          };
+
+      const nextProjects = ProjectService.upsertLocal(project);
+      setProjects(nextProjects);
+      setActiveId(project.id);
+      saveLocal("active_project_id", project.id);
       setActiveContext((prev) => {
         const merged = mergeContext(prev, {
           ...prev,
-          lovableProjectId: lovableId ?? prev.lovableProjectId,
-          lovableProjectName: name,
-          lovableUrl: finalProject.lovable_url,
+          projectId: project.id,
+          lovableProjectId: project.lovable_project_id ?? prev.lovableProjectId,
+          lovableProjectName: project.name,
+          lovableUrl: project.lovable_url ?? prev.lovableUrl,
           previewUrl,
+          previewProvider: lovableId ? "lovable" : "custom",
           updatedAt: new Date().toISOString(),
         } as ActiveContext);
         persistContext(merged);
         return merged;
       });
+      setPreviewStatus("synced");
       setPreviewKey((k) => k + 1);
       sendToExtension(MSK_EVENTS.PANEL_PROJECT_URL_SET, {
-        projectId: finalProject.id,
-        lovableProjectId: lovableId,
+        projectId: project.id,
+        lovableProjectId: project.lovable_project_id,
         previewUrl,
       });
       return previewUrl;
