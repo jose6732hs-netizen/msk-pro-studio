@@ -229,10 +229,7 @@ export function Preview() {
               src={iframeUrl}
               title={`Preview de ${activeProject?.name ?? activeContext.lovableProjectName ?? "projeto ativo"}`}
               className="size-full border-0 bg-white"
-              sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-downloads allow-pointer-lock allow-presentation"
-              allow="clipboard-read; clipboard-write; fullscreen; autoplay"
-              allowFullScreen
-              referrerPolicy="strict-origin-when-cross-origin"
+              sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
             />
           </DeviceMockup>
         ) : null}

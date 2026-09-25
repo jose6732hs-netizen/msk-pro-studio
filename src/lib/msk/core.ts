@@ -77,7 +77,6 @@ export interface MskAttachment {
   status: AttachmentStatus;
   data_url?: string;
   text_preview?: string;
-  error?: string;
   created_at: string;
 }
 
